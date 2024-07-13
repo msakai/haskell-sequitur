@@ -1,6 +1,7 @@
 import Control.Monad
 import qualified Data.Map.Strict as Map
 import qualified Data.IntMap.Strict as IntMap
+import qualified Data.IntSet as IntSet
 import Data.List (intercalate)
 import qualified Data.Set as Set
 import Test.Hspec
@@ -74,7 +75,10 @@ digramUniqueness g = conjoin
       ]
 
 ruleUtility :: Grammar Char -> Property
-ruleUtility g = conjoin [counterexample (show (r, n)) $ n >= 2 | (r, n) <- IntMap.toList occurrences]
+ruleUtility g = 
+  conjoin [counterexample (show (r, n)) $ n >= 2 | (r, n) <- IntMap.toList occurrences]
+  .&&.
+  IntMap.keysSet g === IntSet.insert 0 (IntMap.keysSet occurrences)
   where
     occurrences = IntMap.fromListWith (+)
       [(r, (1::Int)) | body <- IntMap.elems g, NonTerminal r <- body]
