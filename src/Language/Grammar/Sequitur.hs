@@ -103,6 +103,12 @@ import qualified Data.Sequence as Seq
 import GHC.Generics (Generic)
 import GHC.Stack
 
+-- TODO:
+--
+-- * Use PrimVar after dropping support for primitive <0.8.0.0
+--
+-- * Remove Eq requirements after dropping support for hashable <1.4.0.0
+
 -- -------------------------------------------------------------------
 
 sanityCheck :: Bool
