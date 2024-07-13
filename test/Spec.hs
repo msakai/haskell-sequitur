@@ -46,3 +46,10 @@ main = hspec $ do
             [ counterexample (show ce) $ f ps
             | ce@(_digram, ps) <- Map.toList occurrences
             ]
+
+    it "returns the grammer with rule utilization property" $
+      property $ \s ->
+        let g = buildGrammar s
+            occurrences = IntMap.fromListWith (+) [(r, (1::Int)) | body <- IntMap.elems g, NonTerminal r <- body]
+         in counterexample (reprGrammar g) $
+            conjoin [counterexample (show (r, n)) $ n >= 2 | (r, n) <- IntMap.toList occurrences]
