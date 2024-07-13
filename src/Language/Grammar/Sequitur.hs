@@ -32,7 +32,7 @@
 -- grammar's start production (@S@ in the above example), then substitutes repeating
 -- patterns in the given sequence with new rules. /SEQUITUR/ maintains two invariants:
 --
---   [/Digram uniqueness/]: /SEQUITUR/ ensures that no digram
+--   [/Digram Uniqueness/]: /SEQUITUR/ ensures that no digram
 --   (a.k.a. bigram) occurs more than once in the grammar. If a digram
 --   (e.g. @ab@) occurs twice, SEQUITUR introduce a fresh non-terminal
 --   symbol (e.g. @M@) and a rule (e.g. @M@ → @ab@) and replace
