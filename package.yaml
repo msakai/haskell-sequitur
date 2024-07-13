@@ -21,7 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/msak
 
 dependencies:
 - base >= 4.7 && < 5
-- containers
+- containers >= 0.6.4.1 && < 0.7
 
 ghc-options:
 - -Wall
@@ -37,9 +37,9 @@ ghc-options:
 library:
   source-dirs: src
   dependencies:
-  - hashable
-  - hashtables
-  - primitive
+  - hashable >= 1.3.0.0 && < 1.5
+  - hashtables >= 1.2.4.2 && < 1.4
+  - primitive >= 0.7.3.0 && < 0.10
 
 tests:
   sequitur-test:
@@ -51,5 +51,5 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - sequitur
-    - hspec
-    - QuickCheck
+    - hspec >= 2.7.10 && < 2.12
+    - QuickCheck >= 2.14.2 && < 2.15
