@@ -36,6 +36,12 @@ main = hspec $ do
       it ("returns " ++ reprGrammar grammar ++ " for " ++ show xs) $ do
         encode xs `shouldBe` grammar
 
+    it "can be inverted" $
+      property $ forAll simpleString $ \s ->
+        let g = encode s
+            s' = decode g
+         in counterexample (reprGrammar g) $ counterexample s' $ s == s'
+
     it "returns a grammer with digram uniqueness property" $
       property $ forAll simpleString $ \s ->
         let g = encode s

@@ -11,6 +11,10 @@ module Language.Grammar.Sequitur
 
   -- * High-level API
   , encode
+  , decode
+  , decodeLazy
+  , decodeToSeq
+  , decodeToMonoid
 
   -- * Low-level monadic API
   , Builder
@@ -24,6 +28,7 @@ import Control.Monad
 import Control.Monad.Primitive
 import Control.Monad.ST
 import Data.Either
+import qualified Data.Foldable as F
 import Data.Function (on)
 import Data.Hashable
 import Data.IntMap.Strict (IntMap)
@@ -31,6 +36,9 @@ import qualified Data.IntMap.Strict as IntMap
 import Data.Primitive.MutVar
 import qualified Data.HashTable.Class as H (toList)
 import qualified Data.HashTable.ST.Cuckoo as H
+import Data.Semigroup (Endo (..))
+import Data.Sequence (Seq)
+import qualified Data.Sequence as Seq
 import GHC.Generics (Generic)
 import GHC.Stack
 
@@ -353,5 +361,28 @@ encode xs = runST $ do
   e <- newBuilder
   mapM_ (add e) xs
   build e
+
+decode :: HasCallStack => Grammar a -> [a]
+decode = F.toList . decodeToSeq
+
+decodeToSeq :: HasCallStack => Grammar a -> Seq a
+decodeToSeq = decodeToMonoid Seq.singleton 
+
+decodeLazy :: HasCallStack => Grammar a -> [a]
+decodeLazy g = appEndo (decodeToMonoid (\a -> Endo (a :)) g) []
+
+decodeToMonoid :: (Monoid m, HasCallStack) => (a -> m) -> Grammar a -> m
+decodeToMonoid e g = get 0 table
+  where
+    -- depends on the fact that fmap of IntMap is lazy
+    table = fmap (mconcat . map f) g
+
+    f (Terminal a) = e a
+    f (NonTerminal r) = get r table
+
+    get r tbl =
+      case IntMap.lookup r tbl of
+        Nothing -> error ("rule " ++ show r ++ " is missing")
+        Just x -> x
 
 -- -------------------------------------------------------------------
