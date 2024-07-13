@@ -96,11 +96,17 @@ import qualified Data.IntMap.Strict as IntMap
 import Data.Primitive.MutVar
 import qualified Data.HashTable.Class as H (toList)
 import qualified Data.HashTable.ST.Cuckoo as H
+import Data.Maybe
 import Data.Semigroup (Endo (..))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import GHC.Generics (Generic)
 import GHC.Stack
+
+-- -------------------------------------------------------------------
+
+sanityCheck :: Bool
+sanityCheck = False
 
 -- -------------------------------------------------------------------
 
@@ -388,6 +394,18 @@ match s ss m = do
       freq <- readMutVar (ruleRefCounter rule2)
       when (freq == 1) $ expand s firstNode rule2
 
+  when sanityCheck $ do
+    let loop node
+          | isGuardNode node = return ()
+          | otherwise = do
+              case nodeSymbol node of
+                Terminal _ -> return ()
+                NonTerminal rid -> do
+                  rule2 <- getRule s rid
+                  freq <- readMutVar (ruleRefCounter rule2)
+                  when (freq <= 1) $ error "Sequitur.match: non-first node with refCount <= 1"
+    loop =<< getNext firstNode
+
 deleteNode :: (PrimMonad m, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> m ()
 deleteNode s node = do
   assert (not (isGuardNode node)) $ return ()
@@ -425,7 +443,11 @@ expand s node rule = do
   link s l right
 
   n <- getNext l
-  stToPrim $ H.insert (sDigrams s) (nodeSymbol l, nodeSymbol n) l
+  let key = (nodeSymbol l, nodeSymbol n)
+  when sanityCheck $ do
+    ret <- stToPrim $ H.lookup (sDigrams s) key
+    when (isJust ret) $ error ("Sequitur.expand: the digram is already in the table")
+  stToPrim $ H.insert (sDigrams s) key l
   stToPrim $ H.delete (sRules s) (ruleId rule)
 
 -- -------------------------------------------------------------------
