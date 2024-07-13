@@ -1,0 +1,58 @@
+cabal-version: 2.2
+
+-- This file has been generated from package.yaml by hpack version 0.36.0.
+--
+-- see: https://github.com/sol/hpack
+
+name:           sequitur
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/msakai/sequitur#readme>
+homepage:       https://github.com/msakai/sequitur#readme
+bug-reports:    https://github.com/msakai/sequitur/issues
+author:         Masahiro Sakai
+maintainer:     masahiro.sakai@gmail.com
+copyright:      Copyright (c) 2023 Masahiro Sakai
+license:        BSD-3-Clause
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/msakai/sequitur
+
+library
+  exposed-modules:
+      Language.Grammar.Sequitur
+  other-modules:
+      Paths_sequitur
+  autogen-modules:
+      Paths_sequitur
+  hs-source-dirs:
+      src
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , hashable
+    , hashtables
+    , primitive
+  default-language: Haskell2010
+
+test-suite sequitur-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_sequitur
+  autogen-modules:
+      Paths_sequitur
+  hs-source-dirs:
+      test
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5
+    , containers
+    , sequitur
+  default-language: Haskell2010

@@ -1,1 +1,1 @@
-# haskell-sequitur
+# sequitur
