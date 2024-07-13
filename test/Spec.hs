@@ -37,7 +37,7 @@ main = hspec $ do
         encode xs `shouldBe` grammar
 
     it "returns a grammer with digram uniqueness property" $
-      property $ \s ->
+      property $ forAll simpleString $ \s ->
         let g = encode s
             occurrences = Map.fromListWith Set.union [(digram, Set.singleton (i,j)) | (i, body) <- IntMap.toList g, (j, digram) <- zip [(0::Int)..] (zip body (tail body))]
             f ps = case Set.toList ps of
@@ -51,8 +51,11 @@ main = hspec $ do
             ]
 
     it "returns a grammer with rule utilization property" $
-      property $ \s ->
+      property $ forAll simpleString $ \s ->
         let g = encode s
             occurrences = IntMap.fromListWith (+) [(r, (1::Int)) | body <- IntMap.elems g, NonTerminal r <- body]
          in counterexample (reprGrammar g) $
             conjoin [counterexample (show (r, n)) $ n >= 2 | (r, n) <- IntMap.toList occurrences]
+
+simpleString :: Gen String
+simpleString = liftArbitrary (elements ['a'..'z'])
