@@ -54,5 +54,6 @@ test-suite sequitur-test
   build-depends:
       base >=4.7 && <5
     , containers
+    , hspec
     , sequitur
   default-language: Haskell2010
