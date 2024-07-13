@@ -258,7 +258,7 @@ getRule s rid = stToPrim $ do
 
 -- | Add a new symbol to the end of grammar's start production,
 -- and perform normalization to keep the invariants of /SEQUITUR/ algorithm.
-add :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> a -> m ()
+add :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> a -> m ()
 add s a = do
   lastNode <- getLastNodeOfRule (sRoot s)
   _ <- insertAfter s lastNode (Terminal a)
@@ -288,7 +288,7 @@ freezeGuardNode g = f [] =<< getPrev g
 
 -- -------------------------------------------------------------------
 
-link :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
+link :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
 link s left right = do
   leftPrev <- getPrev left
   leftNext <- getNext left
@@ -314,7 +314,7 @@ link s left right = do
   setNext left right
   setPrev right left
 
-insertAfter :: (PrimMonad m, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Symbol a -> m (Node (PrimState m) a)
+insertAfter :: (PrimMonad m, Eq a, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Symbol a -> m (Node (PrimState m) a)
 insertAfter s node sym = do
   prevRef <- newMutVar (sDummyNode s)
   nextRef <- newMutVar (sDummyNode s)
@@ -332,7 +332,7 @@ insertAfter s node sym = do
 
   return newNode
 
-deleteDigram :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> m ()
+deleteDigram :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> m ()
 deleteDigram s n
   | isGuardNode n = return ()
   | otherwise = do
@@ -343,7 +343,7 @@ deleteDigram s n
           _ -> (Nothing, ())
         return ()
 
-check :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> m Bool
+check :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> m Bool
 check s node
   | isGuardNode node = return False
   | otherwise = do
@@ -364,7 +364,7 @@ check s node
                match s node node'
                return True
 
-match :: (PrimMonad m, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
+match :: (PrimMonad m, Eq a, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
 match s ss m = do
   mPrev <- getPrev m
   mNext <- getNext m
@@ -406,7 +406,7 @@ match s ss m = do
                   when (freq <= 1) $ error "Sequitur.match: non-first node with refCount <= 1"
     loop =<< getNext firstNode
 
-deleteNode :: (PrimMonad m, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> m ()
+deleteNode :: (PrimMonad m, Eq a, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> m ()
 deleteNode s node = do
   assert (not (isGuardNode node)) $ return ()
   prev <- getPrev node
@@ -419,7 +419,7 @@ deleteNode s node = do
       rule <- getRule s rid
       modifyMutVar' (ruleRefCounter rule) (subtract 1)
 
-substitute :: (PrimMonad m, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Rule (PrimState m) a -> m ()
+substitute :: (PrimMonad m, Eq a, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Rule (PrimState m) a -> m ()
 substitute s node rule = do
   prev <- getPrev node
   deleteNode s =<< getNext prev
@@ -431,7 +431,7 @@ substitute s node rule = do
     _ <- check s next
     return ()
 
-expand :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> Rule (PrimState m) a -> m ()
+expand :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> Rule (PrimState m) a -> m ()
 expand s node rule = do
   left <- getPrev node
   right <- getNext node
@@ -453,7 +453,7 @@ expand s node rule = do
 -- -------------------------------------------------------------------
 
 -- | Construct a grammer from a given sequence of symbols using /SEQUITUR/.
-encode :: Hashable a => [a] -> Grammar a
+encode :: (Eq a, Hashable a) => [a] -> Grammar a
 encode xs = runST $ do
   e <- newBuilder
   mapM_ (add e) xs
