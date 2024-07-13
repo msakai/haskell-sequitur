@@ -10,13 +10,13 @@ module Language.Grammar.Sequitur
   , Grammar
 
   -- * High-level API
-  , buildGrammar
+  , encode
 
   -- * Low-level monadic API
-  , Encoder
-  , newEncoder
+  , Builder
+  , newBuilder
   , add
-  , freeze
+  , build
   ) where
 
 import Control.Exception
@@ -130,7 +130,7 @@ mkRule rid = do
   refCounter <- newMutVar 0
   return $ Rule rid g refCounter
 
-newRule :: PrimMonad m => Encoder (PrimState m) a -> m (Rule (PrimState m) a)
+newRule :: PrimMonad m => Builder (PrimState m) a -> m (Rule (PrimState m) a)
 newRule s = do
   rid <- readMutVar (sRuleIdCounter s)
   modifyMutVar' (sRuleIdCounter s) (+ 1)
@@ -140,8 +140,8 @@ newRule s = do
 
 -- -------------------------------------------------------------------
 
-data Encoder s a
-  = Encoder
+data Builder s a
+  = Builder
   { sRoot :: !(Rule s a)
   , sDigrams :: !(H.HashTable s (Digram a) (Node s a))
   , sRules :: !(H.HashTable s RuleId (Rule s a))
@@ -149,8 +149,8 @@ data Encoder s a
   , sDummyNode :: !(Node s a)
   }
 
-newEncoder :: PrimMonad m => m (Encoder (PrimState m) a)
-newEncoder = do
+newBuilder :: PrimMonad m => m (Builder (PrimState m) a)
+newBuilder = do
   root <- mkRule 0
   digrams <- stToPrim $ H.new
   rules <- stToPrim $ H.new
@@ -162,24 +162,24 @@ newEncoder = do
   writeMutVar prevRef dummyNode
   writeMutVar nextRef dummyNode
 
-  return $ Encoder root digrams rules counter dummyNode
+  return $ Builder root digrams rules counter dummyNode
 
-getRule :: (PrimMonad m, HasCallStack) => Encoder (PrimState m) a -> RuleId -> m (Rule (PrimState m) a)
+getRule :: (PrimMonad m, HasCallStack) => Builder (PrimState m) a -> RuleId -> m (Rule (PrimState m) a)
 getRule s rid = stToPrim $ do
   ret <- H.lookup (sRules s) rid
   case ret of
     Nothing -> error "getRule: invalid rule id"
     Just rule -> return rule
 
-add :: (PrimMonad m, Hashable a) => Encoder (PrimState m) a -> a -> m ()
+add :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> a -> m ()
 add s a = do
   lastNode <- getLastNodeOfRule (sRoot s)
   _ <- insertAfter s lastNode (Terminal a)
   _ <- check s lastNode
   return ()
 
-freeze :: (PrimMonad m) => Encoder (PrimState m) a -> m (Grammar a)
-freeze s = do
+build :: (PrimMonad m) => Builder (PrimState m) a -> m (Grammar a)
+build s = do
   root <- freezeGuardNode $ ruleGuardNode (sRoot s)
   xs <- stToPrim $ H.toList (sRules s)
   m <- forM xs $ \(rid, rule) -> do
@@ -200,7 +200,7 @@ freezeGuardNode g = f [] =<< getPrev g
 
 -- -------------------------------------------------------------------
 
-link :: (PrimMonad m, Hashable a) => Encoder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
+link :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
 link s left right = do
   leftPrev <- getPrev left
   leftNext <- getNext left
@@ -226,7 +226,7 @@ link s left right = do
   setNext left right
   setPrev right left
 
-insertAfter :: (PrimMonad m, Hashable a, HasCallStack) => Encoder (PrimState m) a -> Node (PrimState m) a -> Symbol a -> m (Node (PrimState m) a)
+insertAfter :: (PrimMonad m, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Symbol a -> m (Node (PrimState m) a)
 insertAfter s node sym = do
   prevRef <- newMutVar (sDummyNode s)
   nextRef <- newMutVar (sDummyNode s)
@@ -244,7 +244,7 @@ insertAfter s node sym = do
 
   return newNode
 
-deleteDigram :: (PrimMonad m, Hashable a) => Encoder (PrimState m) a -> Node (PrimState m) a -> m ()
+deleteDigram :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> m ()
 deleteDigram s n
   | isGuardNode n = return ()
   | otherwise = do  
@@ -255,7 +255,7 @@ deleteDigram s n
           _ -> (Nothing, ())
         return ()
 
-check :: (PrimMonad m, Hashable a) => Encoder (PrimState m) a -> Node (PrimState m) a -> m Bool
+check :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> m Bool
 check s node
   | isGuardNode node = return False
   | otherwise = do
@@ -270,7 +270,7 @@ check s node
           Nothing -> return False
           Just node' -> match s node node' >> return True
 
-match :: (PrimMonad m, Hashable a, HasCallStack) => Encoder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
+match :: (PrimMonad m, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
 match s ss m = do
   mPrev <- getPrev m
   mNext <- getNext m
@@ -300,7 +300,7 @@ match s ss m = do
       freq <- readMutVar (ruleRefCounter rule2)
       when (freq == 1) $ expand s firstNode rule2
 
-deleteNode :: (PrimMonad m, Hashable a, HasCallStack) => Encoder (PrimState m) a -> Node (PrimState m) a -> m ()
+deleteNode :: (PrimMonad m, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> m ()
 deleteNode s node = do
   assert (not (isGuardNode node)) $ return ()
   prev <- getPrev node
@@ -313,7 +313,7 @@ deleteNode s node = do
       rule <- getRule s rid
       modifyMutVar' (ruleRefCounter rule) (subtract 1)
 
-substitute :: (PrimMonad m, Hashable a, HasCallStack) => Encoder (PrimState m) a -> Node (PrimState m) a -> Rule (PrimState m) a -> m ()
+substitute :: (PrimMonad m, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Rule (PrimState m) a -> m ()
 substitute s node rule = do
   prev <- getPrev node
   deleteNode s =<< getNext prev
@@ -325,7 +325,7 @@ substitute s node rule = do
     _ <- check s next
     return ()
 
-expand :: (PrimMonad m, Hashable a) => Encoder (PrimState m) a -> Node (PrimState m) a -> Rule (PrimState m) a -> m ()
+expand :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> Rule (PrimState m) a -> m ()
 expand s node rule = do
   left <- getPrev node
   right <- getNext node
@@ -342,10 +342,10 @@ expand s node rule = do
 
 -- -------------------------------------------------------------------
 
-buildGrammar :: Hashable a => [a] -> Grammar a
-buildGrammar xs = runST $ do
-  e <- newEncoder
+encode :: Hashable a => [a] -> Grammar a
+encode xs = runST $ do
+  e <- newBuilder
   mapM_ (add e) xs
-  freeze e
+  build e
 
 -- -------------------------------------------------------------------

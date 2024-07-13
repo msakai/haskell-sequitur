@@ -10,7 +10,7 @@ import Language.Grammar.Sequitur
 
 main :: IO ()
 main = hspec $ do
-  describe "Sequitur.buildGrammar" $ do
+  describe "Sequitur.encode" $ do
     let reprGrammar grammar = "{" ++ intercalate ", " [show nt ++ " -> " ++ intercalate " " (map reprSymbol body) | (nt, body) <- IntMap.toAscList grammar] ++ "}"
            where
              reprSymbol (Terminal c) = [c]
@@ -31,11 +31,11 @@ main = hspec $ do
           ]
     forM_ cases $ \(xs, grammar) -> do
       it ("returns " ++ reprGrammar grammar ++ " for " ++ show xs) $ do
-        buildGrammar xs `shouldBe` grammar
+        encode xs `shouldBe` grammar
 
     it "returns a grammer with digram uniqueness property" $
       property $ \s ->
-        let g = buildGrammar s
+        let g = encode s
             occurrences = Map.fromListWith Set.union [(digram, Set.singleton (i,j)) | (i, body) <- IntMap.toList g, (j, digram) <- zip [(0::Int)..] (zip body (tail body))]
             f ps = case Set.toList ps of
                      [_] -> True
@@ -49,7 +49,7 @@ main = hspec $ do
 
     it "returns a grammer with rule utilization property" $
       property $ \s ->
-        let g = buildGrammar s
+        let g = encode s
             occurrences = IntMap.fromListWith (+) [(r, (1::Int)) | body <- IntMap.elems g, NonTerminal r <- body]
          in counterexample (reprGrammar g) $
             conjoin [counterexample (show (r, n)) $ n >= 2 | (r, n) <- IntMap.toList occurrences]
