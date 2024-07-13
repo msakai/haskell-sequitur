@@ -33,7 +33,7 @@ main = hspec $ do
       it ("returns " ++ reprGrammar grammar ++ " for " ++ show xs) $ do
         buildGrammar xs `shouldBe` grammar
 
-    it "returns the grammer with digram uniqueness property" $
+    it "returns a grammer with digram uniqueness property" $
       property $ \s ->
         let g = buildGrammar s
             occurrences = Map.fromListWith Set.union [(digram, Set.singleton (i,j)) | (i, body) <- IntMap.toList g, (j, digram) <- zip [(0::Int)..] (zip body (tail body))]
@@ -47,7 +47,7 @@ main = hspec $ do
             | ce@(_digram, ps) <- Map.toList occurrences
             ]
 
-    it "returns the grammer with rule utilization property" $
+    it "returns a grammer with rule utilization property" $
       property $ \s ->
         let g = buildGrammar s
             occurrences = IntMap.fromListWith (+) [(r, (1::Int)) | body <- IntMap.elems g, NonTerminal r <- body]
