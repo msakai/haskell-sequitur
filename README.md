@@ -1,5 +1,7 @@
 # Haskell implementation of _SEQUITUR_ algorithm
 
+[![build](https://github.com/msakai/haskell-sequitur/actions/workflows/build.yaml/badge.svg)](https://github.com/msakai/haskell-sequitur/actions/workflows/build.yaml)
+
 ## About _SEQUITUR_
 
 _SEQUITUR_ is a linear-time, online algorithm for producing a context-free
