@@ -25,8 +25,11 @@ main = hspec $ do
           , ( "abcabc"
             , IntMap.fromList [(0, [NonTerminal 2, NonTerminal 2]), (2, [Terminal 'a', Terminal 'b', Terminal 'c'])]
             )
+          , ( "aaa"
+            , IntMap.fromList [(0,[Terminal 'a', Terminal 'a', Terminal 'a'])]
+            )
           , ( "baaabacaa"
-            , IntMap.fromList [(0,[Terminal 'b',NonTerminal 1,Terminal 'b',Terminal 'a',Terminal 'c',NonTerminal 1]),(1,[Terminal 'a',Terminal 'a'])]
+            , IntMap.fromList [(0,[NonTerminal 1,NonTerminal 2,NonTerminal 1,Terminal 'c',NonTerminal 2]),(1,[Terminal 'b',Terminal 'a']),(2,[Terminal 'a',Terminal 'a'])]
             )
           ]
     forM_ cases $ \(xs, grammar) -> do

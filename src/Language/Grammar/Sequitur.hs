@@ -268,7 +268,13 @@ check s node
           Just node' -> (Just node', Just node')
         case ret of
           Nothing -> return False
-          Just node' -> match s node node' >> return True
+          Just node' -> do
+             next' <- getNext node'
+             if node == next' then
+               return False
+             else do
+               match s node node'
+               return True
 
 match :: (PrimMonad m, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
 match s ss m = do
