@@ -1,23 +1,23 @@
 name:                sequitur
 version:             0.1.0.0
-github:              "msakai/sequitur"
+github:              "msakai/haskell-sequitur"
 license:             BSD-3-Clause
 author:              "Masahiro Sakai"
 maintainer:          "masahiro.sakai@gmail.com"
-copyright:           "Copyright (c) 2023 Masahiro Sakai"
+copyright:           "Copyright (c) 2024 Masahiro Sakai"
 
 extra-source-files:
 - README.md
 - CHANGELOG.md
 
 # Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Web
+synopsis:            Grammar-based compression algorithms SEQUITUR
+category:            Formal Languages, Language, Natural Language Processing, NLP, Text, Compression
 
 # To avoid duplicated efforts in documentation and dealing with the
 # complications of embedding Haddock markup inside cabal files, it is
 # common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/msakai/sequitur#readme>
+description:         Please see the README on GitHub at <https://github.com/msakai/haskell-sequitur#readme>
 
 dependencies:
 - base >= 4.7 && < 5

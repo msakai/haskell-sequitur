@@ -6,12 +6,14 @@ cabal-version: 2.2
 
 name:           sequitur
 version:        0.1.0.0
-description:    Please see the README on GitHub at <https://github.com/msakai/sequitur#readme>
-homepage:       https://github.com/msakai/sequitur#readme
-bug-reports:    https://github.com/msakai/sequitur/issues
+synopsis:       Grammar-based compression algorithms SEQUITUR
+description:    Please see the README on GitHub at <https://github.com/msakai/haskell-sequitur#readme>
+category:       Formal Languages, Language, Natural Language Processing, NLP, Text, Compression
+homepage:       https://github.com/msakai/haskell-sequitur#readme
+bug-reports:    https://github.com/msakai/haskell-sequitur/issues
 author:         Masahiro Sakai
 maintainer:     masahiro.sakai@gmail.com
-copyright:      Copyright (c) 2023 Masahiro Sakai
+copyright:      Copyright (c) 2024 Masahiro Sakai
 license:        BSD-3-Clause
 license-file:   LICENSE
 build-type:     Simple
@@ -21,7 +23,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: https://github.com/msakai/sequitur
+  location: https://github.com/msakai/haskell-sequitur
 
 library
   exposed-modules:
