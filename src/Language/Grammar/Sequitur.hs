@@ -2,14 +2,70 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+-----------------------------------------------------------------------------
+-- |
+-- Module      :  Language.Grammar.Sequitur
+-- Copyright   :  (c) Masahiro Sakai 2024
+-- License     :  BSD-style
+--
+-- Maintainer  :  masahiro.sakai@gmail.com
+-- Stability   :  provisional
+-- Portability :  non-portable
+--
+-- /SEQUITUR/ is a linear-time, online algorithm for producing a context-free
+-- grammar from an input sequence. The resulting grammar is a compact representation
+-- of original sequence and can be used for data compression.
+--
+-- Example:
+--
+--   - Input string: @abcabcabcabcabc@
+--
+--   - Resulting grammar
+--
+--       - @S@ → @AAB@
+--
+--       - @A@ → @BB@
+--
+--       - @B@ → @abc@
+--
+-- /SEQUITUR/ consumes input symbols one-by-one and append each symbol at the end of the
+-- grammar's start production (@S@ in the above example), then substitutes repeating
+-- patterns in the given sequence with new rules. /SEQUITUR/ maintains two invariants:
+--
+--   [/Digram uniqueness/]: /SEQUITUR/ ensures that no digram
+--   (a.k.a. bigram) occurs more than once in the grammar. If a digram
+--   (e.g. @ab@) occurs twice, SEQUITUR introduce a fresh non-terminal
+--   symbol (e.g. @M@) and a rule (e.g. @M@ → @ab@) and replace
+--   original occurences with the newly introduced non-terminals.  One
+--   exception is the cases where two occurrence overlap.
+--
+--   [/Rule Utility/]: If a non-terminal symbol occurs only once,
+--   /SEQUITUR/ removes the associated rule and substitute the occurence
+--   with the right-hand side of the rule.
+--
+-- References:
+--
+--   - [Sequitur algorithm - Wikipedia](https://en.m.wikipedia.org/wiki/Sequitur_algorithm)
+--
+--   - [sequitur.info](http://www.sequitur.info/)
+--
+--   - Nevill-Manning, C.G. and Witten, I.H. (1997) "[Identifying
+--     Hierarchical Structure in Sequences: A linear-time
+--     algorithm](https://doi.org/10.1613/jair.374)," Journal of
+--     Artificial Intelligence Research, 7, 67-82.
+--
+-----------------------------------------------------------------------------
 module Language.Grammar.Sequitur
   (
   -- * Basic type definition
-    Symbol (..)
+    Grammar
   , RuleId
-  , Grammar
+  , Symbol (..)
 
   -- * High-level API
+  --
+  -- Use these APIs if the entire sequence is given at once and you
+  -- only need to create a single grammar from it.
   , encode
   , decode
   , decodeLazy
@@ -17,6 +73,10 @@ module Language.Grammar.Sequitur
   , decodeToMonoid
 
   -- * Low-level monadic API
+  --
+  -- Use these low-level monadic API if the input sequence is given
+  -- incrementally, or you want to re-construct grammar after you
+  -- receive additinal inputs.
   , Builder
   , newBuilder
   , add
@@ -44,8 +104,13 @@ import GHC.Stack
 
 -- -------------------------------------------------------------------
 
+-- | A non-terminal symbol is represented by an 'Int'.
+--
+-- The number @0@ is reserved for the start symbol of the grammar.
 type RuleId = Int
 
+-- | A symbol is either a terminal symbol (from user-specified type)
+-- or a non-terminal symbol which we represent using 'RuleId' type.
 data Symbol a
   = NonTerminal !RuleId
   | Terminal !a
@@ -55,6 +120,10 @@ instance (Hashable a) => Hashable (Symbol a)
 
 type Digram a = (Symbol a, Symbol a)
 
+-- | A grammar is a mappping from non-terminal (left-hand side of the
+-- rule) to sequnce of symbols (right hand side of the rule).
+--
+-- Non-terminal is represented as a 'RuleId'.
 type Grammar a = IntMap [Symbol a]
 
 -- -------------------------------------------------------------------
@@ -85,7 +154,7 @@ nodeSymbol node =
     Just sym -> sym
 
 ruleOfGuardNode :: Node s a -> Maybe RuleId
-ruleOfGuardNode node = 
+ruleOfGuardNode node =
   case nodeData node of
     Left rule -> Just rule
     Right _ -> Nothing
@@ -148,6 +217,7 @@ newRule s = do
 
 -- -------------------------------------------------------------------
 
+-- | 'Builder' denotes a internal state of the /SEQUITUR/ algorithm.
 data Builder s a
   = Builder
   { sRoot :: !(Rule s a)
@@ -157,6 +227,7 @@ data Builder s a
   , sDummyNode :: !(Node s a)
   }
 
+-- | Create a new 'Builder'.
 newBuilder :: PrimMonad m => m (Builder (PrimState m) a)
 newBuilder = do
   root <- mkRule 0
@@ -179,6 +250,8 @@ getRule s rid = stToPrim $ do
     Nothing -> error "getRule: invalid rule id"
     Just rule -> return rule
 
+-- | Add a new symbol to the end of grammar's start production,
+-- and perform normalization to keep the invariants of /SEQUITUR/ algorithm.
 add :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> a -> m ()
 add s a = do
   lastNode <- getLastNodeOfRule (sRoot s)
@@ -186,6 +259,7 @@ add s a = do
   _ <- check s lastNode
   return ()
 
+-- | Retrieve a grammar (as a persistent data structure) from 'Builder'\'s internal state.
 build :: (PrimMonad m) => Builder (PrimState m) a -> m (Grammar a)
 build s = do
   root <- freezeGuardNode $ ruleGuardNode (sRoot s)
@@ -255,7 +329,7 @@ insertAfter s node sym = do
 deleteDigram :: (PrimMonad m, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> m ()
 deleteDigram s n
   | isGuardNode n = return ()
-  | otherwise = do  
+  | otherwise = do
       next <- getNext n
       unless (isGuardNode next) $ do
         _ <- stToPrim $ H.mutate (sDigrams s) (nodeSymbol n, nodeSymbol next) $ \case
@@ -356,21 +430,45 @@ expand s node rule = do
 
 -- -------------------------------------------------------------------
 
+-- | Construct a grammer from a given sequence of symbols using /SEQUITUR/.
 encode :: Hashable a => [a] -> Grammar a
 encode xs = runST $ do
   e <- newBuilder
   mapM_ (add e) xs
   build e
 
+-- | Reconstruct a input sequence from a grammar.
+--
+-- This is a left-inverse of 'encode'.
+--
+-- This function is implemented as
+--
+-- @
+-- decode = 'F.toList' . 'decodeToSeq'
+-- @
+--
+-- and provided just for convenience.
+-- For serious usage, use 'decodeToSeq' or 'decodeLazy'.
 decode :: HasCallStack => Grammar a -> [a]
 decode = F.toList . decodeToSeq
 
+-- | A variant of 'decode' with possibly better performance.
 decodeToSeq :: HasCallStack => Grammar a -> Seq a
-decodeToSeq = decodeToMonoid Seq.singleton 
+decodeToSeq = decodeToMonoid Seq.singleton
 
+-- | A variant of 'decode' but you can consume from the beginning
+-- before constructing entire sequence.
 decodeLazy :: HasCallStack => Grammar a -> [a]
 decodeLazy g = appEndo (decodeToMonoid (\a -> Endo (a :)) g) []
 
+-- | 'Monoid'-based folding over the decoded sequence.
+--
+-- This function is equivalent to the following definition, is more
+-- efficent due to the utilization of sharing.b
+--
+-- @
+-- decodeToMonoid f = 'mconcat' . 'map' f . 'decode'
+-- @
 decodeToMonoid :: (Monoid m, HasCallStack) => (a -> m) -> Grammar a -> m
 decodeToMonoid e g = get 0 table
   where
