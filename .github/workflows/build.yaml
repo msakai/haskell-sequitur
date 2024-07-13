@@ -1,0 +1,62 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+name: build
+jobs:
+  build:
+    name: build
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc: ['8.10.7', '9.0.2', '9.2.8', '9.4.8', '9.6.6', '9.8.2']
+        os: [ubuntu-latest]
+        include:
+          - ghc: '8.10.7'
+            resolver: 'lts-18.28'
+          - ghc: '9.0.2'
+            resolver: 'lts-19.33'
+          - ghc: '9.2.8'
+            resolver: 'lts-20.26'
+          - ghc: '9.4.8'
+            resolver: 'lts-21.25'
+          - ghc: '9.6.6'
+            resolver: 'lts-22.28'
+          - ghc: '9.8.2'
+            resolver: 'nightly-2024-07-13'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        name: Setup Haskell
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          enable-stack: true
+          stack-version: 'latest'
+          cabal-update: false
+
+      - name: Setup stack
+        run: |
+          stack config set system-ghc --global true
+          echo "resolver: ${{ matrix.resolver }}" > stack.yaml
+
+      - uses: actions/cache@v4
+        name: Cache ~/.stack
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-${{ matrix.ghc }}-stack
+
+      - name: Build dependencies
+        run: stack build --test --no-run-tests --only-dependencies
+
+      - name: Build
+        run: stack build --test --no-run-tests
+
+      - name: Test
+        run: stack test
+
+      - name: Create source tarball
+        run: stack sdist
