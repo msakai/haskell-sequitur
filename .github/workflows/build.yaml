@@ -25,6 +25,8 @@ jobs:
             resolver: 'lts-21.25'
           - ghc: '9.6.6'
             resolver: 'lts-22.28'
+            coveralls: true
+            stack_args: '--coverage'
           - ghc: '9.8.2'
             resolver: 'nightly-2024-07-13'
     steps:
@@ -50,13 +52,22 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.ghc }}-stack
 
       - name: Build dependencies
-        run: stack build --test --no-run-tests --only-dependencies
+        run: stack build ${{ matrix.stack_args }} --test --no-run-tests --only-dependencies
 
       - name: Build
-        run: stack build --test --no-run-tests
+        run: stack build ${{ matrix.stack_args }} --test --no-run-tests
 
       - name: Test
-        run: stack test
+        run: stack test ${{ matrix.stack_args }}
 
       - name: Create source tarball
         run: stack sdist
+
+      - name: Coveralls
+        if: matrix.coveralls
+        continue-on-error: true
+        env:
+          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+        run: |
+          curl -L https://github.com/rubik/stack-hpc-coveralls/releases/download/v0.0.7.0/shc-Linux-X64.tar.bz2 | tar -xj
+          ./shc --repo-token="$COVERALLS_REPO_TOKEN" sequitur sequitur-test
