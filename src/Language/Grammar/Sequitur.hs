@@ -269,6 +269,7 @@ add s a = do
   lastNode <- getLastNodeOfRule (sRoot s)
   _ <- insertAfter s lastNode (Terminal a)
   _ <- check s lastNode
+  when sanityCheck $ checkDigramTable s
   return ()
 
 -- | Retrieve a grammar (as a persistent data structure) from 'Builder'\'s internal state.
@@ -510,5 +511,65 @@ decodeToMonoid e g = get 0 table
       case IntMap.lookup r tbl of
         Nothing -> error ("rule " ++ show r ++ " is missing")
         Just x -> x
+
+-- -------------------------------------------------------------------
+
+checkDigramTable :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> m ()
+checkDigramTable s = do
+  checkDigramTable1 s
+  checkDigramTable2 s
+
+checkDigramTable1 :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> m ()
+checkDigramTable1 s = do
+  ds <- stToPrim $ H.toList (sDigrams s)
+  forM_ ds $ \((sym1, sym2), node1) -> do
+    node2 <- getNext node1
+    unless ((nodeData node1, nodeData node2) == (Right sym1, Right sym2)) $ do
+      error "checkDigramTable1: an entry points to a different digram"
+    let f n =
+          case nodeData n of
+            Right _ -> f =<< getPrev n
+            Left rid -> do
+              rule <- if rid == 0 then
+                        return (sRoot s)
+                      else do
+                        ret <- stToPrim $ H.lookup (sRules s) rid
+                        case ret of
+                          Nothing -> error "checkDigramTable1: an entry points to a digram in an invalid rule"
+                          Just rule -> return rule
+              unless (ruleGuardNode rule == n) $ do
+                error "checkDigramTable1: an entry points to a digram in a inconsistent rule"
+    f node1
+
+checkDigramTable2 :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> m ()
+checkDigramTable2 s = do
+  rules <- stToPrim $ H.toList (sRules s)
+  forM_ (sRoot s : map snd rules) $ \rule -> do
+    let f node1 = do
+          node2 <- getNext node1
+          unless (isGuardNode node2) $ do
+            let sym1 = nodeSymbol node1
+                sym2 = nodeSymbol node2
+                normalCase = do
+                  ret <- stToPrim $ H.lookup (sDigrams s) (sym1, sym2)
+                  case ret of
+                    Nothing -> error "checkDigramTable2: digram does not in the digram table"
+                    Just node | node1 /= node -> error "checkDigramTable2: digram entry points to a different node"
+                    Just _ -> return ()
+                  f node2
+            if sym1 == sym2 then do
+              node3 <- getNext node2
+              case nodeData node3 of
+                Right sym3 | sym1 == sym3 -> do
+                  ret <- stToPrim $ H.lookup (sDigrams s) (sym1, sym2)
+                  case ret of
+                    Nothing -> error "checkDigramTable2: digram does not in the digram table"
+                    Just node | node1 /= node && node2 /= node -> error "checkDigramTable2: digram entry points to a different node"
+                    Just _ -> return ()
+                  f node3
+                _ -> normalCase
+            else do
+              normalCase
+    f =<< getFirstNodeOfRule rule
 
 -- -------------------------------------------------------------------
