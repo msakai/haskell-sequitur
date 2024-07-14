@@ -1,5 +1,9 @@
 # Haskell implementation of _SEQUITUR_ algorithm
 
+Hackage:
+[![Hackage](https://img.shields.io/hackage/v/sequitur.svg)](https://hackage.haskell.org/package/sequitur)
+
+Dev:
 [![build](https://github.com/msakai/haskell-sequitur/actions/workflows/build.yaml/badge.svg)](https://github.com/msakai/haskell-sequitur/actions/workflows/build.yaml)
 
 ## About _SEQUITUR_
