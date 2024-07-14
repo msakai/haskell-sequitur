@@ -5,6 +5,7 @@ Hackage:
 
 Dev:
 [![build](https://github.com/msakai/haskell-sequitur/actions/workflows/build.yaml/badge.svg)](https://github.com/msakai/haskell-sequitur/actions/workflows/build.yaml)
+[![Coverage Status](https://coveralls.io/repos/github/msakai/haskell-sequitur/badge.svg?branch=main)](https://coveralls.io/github/msakai/haskell-sequitur?branch=main)
 
 ## About _SEQUITUR_
 
