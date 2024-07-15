@@ -6,7 +6,7 @@ author:              "Masahiro Sakai"
 maintainer:          "masahiro.sakai@gmail.com"
 copyright:           "Copyright (c) 2024 Masahiro Sakai"
 
-extra-source-files:
+extra-doc-files:
 - README.md
 - CHANGELOG.md
 
