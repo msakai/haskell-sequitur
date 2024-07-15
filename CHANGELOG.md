@@ -8,4 +8,8 @@ and this project adheres to the
 
 ## Unreleased
 
+* add some sanity checks which are disabled by default
+
 ## 0.1.0.0 - 2024-07-13
+
+* initial release
