@@ -269,7 +269,9 @@ add s a = do
   lastNode <- getLastNodeOfRule (sRoot s)
   _ <- insertAfter s lastNode (Terminal a)
   _ <- check s lastNode
-  when sanityCheck $ checkDigramTable s
+  when sanityCheck $ do
+    checkDigramTable s
+    checkRefCount s
   return ()
 
 -- | Retrieve a grammar (as a persistent data structure) from 'Builder'\'s internal state.
@@ -571,5 +573,18 @@ checkDigramTable2 s = do
             else do
               normalCase
     f =<< getFirstNodeOfRule rule
+
+checkRefCount :: forall m a. (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> m ()
+checkRefCount s = do
+  g <- build s
+  let occurences = IntMap.fromListWith (+) [(rid, 1) | body <- IntMap.elems g, NonTerminal rid <- body]
+      f :: (RuleId, Rule (PrimState m) a) -> ST (PrimState m) ()
+      f (_r, rule) = do
+        actual <- readMutVar (ruleRefCounter rule)
+        let expected = IntMap.findWithDefault 0 (ruleId rule) occurences
+        unless (actual == expected) $
+          error ("rule " ++ show (ruleId rule) ++ " occurs " ++ show expected ++ " times,"
+                 ++ " but its reference counter is " ++ show actual)
+  stToPrim $ H.mapM_ f (sRules s)
 
 -- -------------------------------------------------------------------
