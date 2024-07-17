@@ -19,6 +19,12 @@ category:            Formal Languages, Language, Natural Language Processing, NL
 # common to point users to the README.md file.
 description:         Please see the README on GitHub at <https://github.com/msakai/haskell-sequitur#readme>
 
+flags:
+  build-example-programs:
+    description: Build example programs
+    default: false
+    manual: true
+
 dependencies:
 - base >= 4.7 && < 5
 - containers >= 0.6.4.1 && < 0.7
@@ -53,3 +59,23 @@ tests:
     - sequitur
     - hspec >= 2.7.10 && < 2.12
     - QuickCheck >= 2.14.2 && < 2.15
+
+executables:
+  sequitur-demo:
+    main:                Main.hs
+    source-dirs:         app/demo
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - sequitur
+    - clock >= 0.8.3 && < 0.9
+    - optparse-applicative >= 0.16.1.0 && < 0.19
+    - text >= 1.2.4.1 && < 2.2
+    when:
+    - condition: flag(build-example-programs)
+      then:
+        buildable: true
+      else:
+        buildable: false
