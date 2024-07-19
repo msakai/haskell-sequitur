@@ -171,19 +171,19 @@ ruleOfGuardNode node =
     Left rule -> Just rule
     Right _ -> Nothing
 
-getPrev :: PrimMonad m => Node (PrimState m) a -> m (Node (PrimState m) a)
+getPrev :: Node s a -> ST s (Node s a)
 getPrev node = readMutVar (nodePrev node)
 
-getNext :: PrimMonad m => Node (PrimState m) a -> m (Node (PrimState m) a)
+getNext :: Node s a -> ST s (Node s a)
 getNext node = readMutVar (nodeNext node)
 
-setPrev :: PrimMonad m => Node (PrimState m) a -> Node (PrimState m) a -> m ()
+setPrev :: Node s a -> Node s a -> ST s ()
 setPrev node prev = writeMutVar (nodePrev node) prev
 
-setNext :: PrimMonad m => Node (PrimState m) a -> Node (PrimState m) a -> m ()
+setNext :: Node s a -> Node s a -> ST s ()
 setNext node next = writeMutVar (nodeNext node) next
 
-mkGuardNode :: PrimMonad m => RuleId -> m (Node (PrimState m) a)
+mkGuardNode :: RuleId -> ST s (Node s a)
 mkGuardNode rid = do
   prevRef <- newMutVar undefined
   nextRef <- newMutVar undefined
@@ -207,24 +207,24 @@ instance Eq (Rule s a) where
 instance Hashable (Rule s a) where
   hashWithSalt salt rule = hashWithSalt salt (ruleId rule)
 
-getFirstNodeOfRule :: PrimMonad m => Rule (PrimState m) a -> m (Node (PrimState m) a)
+getFirstNodeOfRule :: Rule s a -> ST s (Node s a)
 getFirstNodeOfRule rule = getNext (ruleGuardNode rule)
 
-getLastNodeOfRule :: PrimMonad m => Rule (PrimState m) a -> m (Node (PrimState m) a)
+getLastNodeOfRule :: Rule s a -> ST s (Node s a)
 getLastNodeOfRule rule = getPrev (ruleGuardNode rule)
 
-mkRule :: PrimMonad m => RuleId -> m (Rule (PrimState m) a)
+mkRule :: RuleId -> ST s (Rule s a)
 mkRule rid = do
   g <- mkGuardNode rid
   refCounter <- newMutVar 0
   return $ Rule rid g refCounter
 
-newRule :: PrimMonad m => Builder (PrimState m) a -> m (Rule (PrimState m) a)
+newRule :: Builder s a -> ST s (Rule s a)
 newRule s = do
   rid <- readMutVar (sRuleIdCounter s)
   modifyMutVar' (sRuleIdCounter s) (+ 1)
   rule <- mkRule rid
-  stToPrim $ H.insert (sRules s) rid rule
+  H.insert (sRules s) rid rule
   return rule
 
 -- -------------------------------------------------------------------
@@ -241,10 +241,10 @@ data Builder s a
 
 -- | Create a new 'Builder'.
 newBuilder :: PrimMonad m => m (Builder (PrimState m) a)
-newBuilder = do
+newBuilder = stToPrim $ do
   root <- mkRule 0
-  digrams <- stToPrim $ H.new
-  rules <- stToPrim $ H.new
+  digrams <- H.new
+  rules <- H.new
   counter <- newMutVar 1
 
   prevRef <- newMutVar undefined
@@ -255,8 +255,8 @@ newBuilder = do
 
   return $ Builder root digrams rules counter dummyNode
 
-getRule :: (PrimMonad m, HasCallStack) => Builder (PrimState m) a -> RuleId -> m (Rule (PrimState m) a)
-getRule s rid = stToPrim $ do
+getRule :: HasCallStack => Builder s a -> RuleId -> ST s (Rule s a)
+getRule s rid = do
   ret <- H.lookup (sRules s) rid
   case ret of
     Nothing -> error "getRule: invalid rule id"
@@ -265,7 +265,7 @@ getRule s rid = stToPrim $ do
 -- | Add a new symbol to the end of grammar's start production,
 -- and perform normalization to keep the invariants of /SEQUITUR/ algorithm.
 add :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> a -> m ()
-add s a = do
+add s a = stToPrim $ do
   lastNode <- getLastNodeOfRule (sRoot s)
   _ <- insertAfter s lastNode (Terminal a)
   _ <- check s lastNode
@@ -276,18 +276,18 @@ add s a = do
 
 -- | Retrieve a grammar (as a persistent data structure) from 'Builder'\'s internal state.
 build :: (PrimMonad m) => Builder (PrimState m) a -> m (Grammar a)
-build s = do
+build s = stToPrim $ do
   root <- freezeGuardNode $ ruleGuardNode (sRoot s)
-  xs <- stToPrim $ H.toList (sRules s)
+  xs <- H.toList (sRules s)
   m <- forM xs $ \(rid, rule) -> do
     ys <- freezeGuardNode (ruleGuardNode rule)
     return $ (rid, ys)
   return $ IntMap.insert 0 root $ IntMap.fromList m
 
-freezeGuardNode :: forall a m. (PrimMonad m) => Node (PrimState m) a -> m [Symbol a]
+freezeGuardNode :: forall a s. Node s a -> ST s [Symbol a]
 freezeGuardNode g = f [] =<< getPrev g
   where
-    f :: [Symbol a] -> Node (PrimState m) a -> m [Symbol a]
+    f :: [Symbol a] -> Node s a -> ST s [Symbol a]
     f ret node = do
       if isGuardNode node then
         return ret
@@ -297,7 +297,7 @@ freezeGuardNode g = f [] =<< getPrev g
 
 -- -------------------------------------------------------------------
 
-link :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
+link :: (Eq a, Hashable a) => Builder s a -> Node s a -> Node s a -> ST s ()
 link s left right = do
   leftPrev <- getPrev left
   leftNext <- getNext left
@@ -312,18 +312,18 @@ link s left right = do
 
     case (nodeSymbolMaybe rightPrev, nodeSymbolMaybe right, nodeSymbolMaybe rightNext) of
       (Just sym1, Just sym2, Just sym3) | sym1 == sym2 && sym2 == sym3 ->
-        stToPrim $ H.insert (sDigrams s) (sym2, sym3) right
+        H.insert (sDigrams s) (sym2, sym3) right
       _ -> return ()
 
     case (nodeSymbolMaybe leftPrev, nodeSymbolMaybe left, nodeSymbolMaybe leftNext) of
       (Just sym1, Just sym2, Just sym3) | sym1 == sym2 && sym2 == sym3 ->
-        stToPrim $ H.insert (sDigrams s) (sym1, sym2) leftPrev
+        H.insert (sDigrams s) (sym1, sym2) leftPrev
       _ -> return ()
 
   setNext left right
   setPrev right left
 
-insertAfter :: (PrimMonad m, Eq a, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Symbol a -> m (Node (PrimState m) a)
+insertAfter :: (Eq a, Hashable a, HasCallStack) => Builder s a -> Node s a -> Symbol a -> ST s (Node s a)
 insertAfter s node sym = do
   prevRef <- newMutVar (sDummyNode s)
   nextRef <- newMutVar (sDummyNode s)
@@ -341,18 +341,18 @@ insertAfter s node sym = do
 
   return newNode
 
-deleteDigram :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> m ()
+deleteDigram :: (Eq a, Hashable a) => Builder s a -> Node s a -> ST s ()
 deleteDigram s n
   | isGuardNode n = return ()
   | otherwise = do
       next <- getNext n
       unless (isGuardNode next) $ do
-        _ <- stToPrim $ H.mutate (sDigrams s) (nodeSymbol n, nodeSymbol next) $ \case
+        _ <- H.mutate (sDigrams s) (nodeSymbol n, nodeSymbol next) $ \case
           Just n' | n /= n' -> (Just n', ())
           _ -> (Nothing, ())
         return ()
 
-check :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> m Bool
+check :: (Eq a, Hashable a) => Builder s a -> Node s a -> ST s Bool
 check s node
   | isGuardNode node = return False
   | otherwise = do
@@ -360,7 +360,7 @@ check s node
       if isGuardNode next then
         return False
       else do
-        ret <- stToPrim $ H.mutate (sDigrams s) (nodeSymbol node, nodeSymbol next) $ \case
+        ret <- H.mutate (sDigrams s) (nodeSymbol node, nodeSymbol next) $ \case
           Nothing -> (Just node, Nothing)
           Just node' -> (Just node', Just node')
         case ret of
@@ -373,7 +373,7 @@ check s node
                match s node node'
                return True
 
-match :: (PrimMonad m, Eq a, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Node (PrimState m) a -> m ()
+match :: (Eq a, Hashable a, HasCallStack) => Builder s a -> Node s a -> Node s a -> ST s ()
 match s ss m = do
   mPrev <- getPrev m
   mNext <- getNext m
@@ -392,7 +392,7 @@ match s ss m = do
       node2 <- insertAfter s node1 (nodeSymbol ss2)
       substitute s m rule
       substitute s ss rule
-      stToPrim $ H.insert (sDigrams s) (nodeSymbol node1, nodeSymbol node2) node1
+      H.insert (sDigrams s) (nodeSymbol node1, nodeSymbol node2) node1
       return rule
 
   firstNode <- getFirstNodeOfRule rule
@@ -415,7 +415,7 @@ match s ss m = do
                   when (freq <= 1) $ error "Sequitur.match: non-first node with refCount <= 1"
     loop =<< getNext firstNode
 
-deleteNode :: (PrimMonad m, Eq a, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> m ()
+deleteNode :: (Eq a, Hashable a, HasCallStack) => Builder s a -> Node s a -> ST s ()
 deleteNode s node = do
   assert (not (isGuardNode node)) $ return ()
   prev <- getPrev node
@@ -428,7 +428,7 @@ deleteNode s node = do
       rule <- getRule s rid
       modifyMutVar' (ruleRefCounter rule) (subtract 1)
 
-substitute :: (PrimMonad m, Eq a, Hashable a, HasCallStack) => Builder (PrimState m) a -> Node (PrimState m) a -> Rule (PrimState m) a -> m ()
+substitute :: (Eq a, Hashable a, HasCallStack) => Builder s a -> Node s a -> Rule s a -> ST s ()
 substitute s node rule = do
   prev <- getPrev node
   deleteNode s =<< getNext prev
@@ -440,7 +440,7 @@ substitute s node rule = do
     _ <- check s next
     return ()
 
-expand :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> Node (PrimState m) a -> Rule (PrimState m) a -> m ()
+expand :: (Eq a, Hashable a) => Builder s a -> Node s a -> Rule s a -> ST s ()
 expand s node rule = do
   left <- getPrev node
   right <- getNext node
@@ -454,10 +454,10 @@ expand s node rule = do
   n <- getNext l
   let key = (nodeSymbol l, nodeSymbol n)
   when sanityCheck $ do
-    ret <- stToPrim $ H.lookup (sDigrams s) key
+    ret <- H.lookup (sDigrams s) key
     when (isJust ret) $ error ("Sequitur.expand: the digram is already in the table")
-  stToPrim $ H.insert (sDigrams s) key l
-  stToPrim $ H.delete (sRules s) (ruleId rule)
+  H.insert (sDigrams s) key l
+  H.delete (sRules s) (ruleId rule)
 
 -- -------------------------------------------------------------------
 
@@ -516,14 +516,14 @@ decodeToMonoid e g = get 0 table
 
 -- -------------------------------------------------------------------
 
-checkDigramTable :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> m ()
+checkDigramTable :: (Eq a, Hashable a) => Builder s a -> ST s ()
 checkDigramTable s = do
   checkDigramTable1 s
   checkDigramTable2 s
 
-checkDigramTable1 :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> m ()
+checkDigramTable1 :: (Eq a, Hashable a) => Builder s a -> ST s ()
 checkDigramTable1 s = do
-  ds <- stToPrim $ H.toList (sDigrams s)
+  ds <- H.toList (sDigrams s)
   forM_ ds $ \((sym1, sym2), node1) -> do
     node2 <- getNext node1
     unless ((nodeData node1, nodeData node2) == (Right sym1, Right sym2)) $ do
@@ -535,7 +535,7 @@ checkDigramTable1 s = do
               rule <- if rid == 0 then
                         return (sRoot s)
                       else do
-                        ret <- stToPrim $ H.lookup (sRules s) rid
+                        ret <- H.lookup (sRules s) rid
                         case ret of
                           Nothing -> error "checkDigramTable1: an entry points to a digram in an invalid rule"
                           Just rule -> return rule
@@ -543,9 +543,9 @@ checkDigramTable1 s = do
                 error "checkDigramTable1: an entry points to a digram in a inconsistent rule"
     f node1
 
-checkDigramTable2 :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> m ()
+checkDigramTable2 :: (Eq a, Hashable a) => Builder s a -> ST s ()
 checkDigramTable2 s = do
-  rules <- stToPrim $ H.toList (sRules s)
+  rules <- H.toList (sRules s)
   forM_ (sRoot s : map snd rules) $ \rule -> do
     let f node1 = do
           node2 <- getNext node1
@@ -553,7 +553,7 @@ checkDigramTable2 s = do
             let sym1 = nodeSymbol node1
                 sym2 = nodeSymbol node2
                 normalCase = do
-                  ret <- stToPrim $ H.lookup (sDigrams s) (sym1, sym2)
+                  ret <- H.lookup (sDigrams s) (sym1, sym2)
                   case ret of
                     Nothing -> error "checkDigramTable2: digram does not in the digram table"
                     Just node | node1 /= node -> error "checkDigramTable2: digram entry points to a different node"
@@ -563,7 +563,7 @@ checkDigramTable2 s = do
               node3 <- getNext node2
               case nodeData node3 of
                 Right sym3 | sym1 == sym3 -> do
-                  ret <- stToPrim $ H.lookup (sDigrams s) (sym1, sym2)
+                  ret <- H.lookup (sDigrams s) (sym1, sym2)
                   case ret of
                     Nothing -> error "checkDigramTable2: digram does not in the digram table"
                     Just node | node1 /= node && node2 /= node -> error "checkDigramTable2: digram entry points to a different node"
@@ -574,17 +574,17 @@ checkDigramTable2 s = do
               normalCase
     f =<< getFirstNodeOfRule rule
 
-checkRefCount :: forall m a. (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> m ()
+checkRefCount :: forall s a. (Eq a, Hashable a) => Builder s a -> ST s ()
 checkRefCount s = do
   g <- build s
   let occurences = IntMap.fromListWith (+) [(rid, 1) | body <- IntMap.elems g, NonTerminal rid <- body]
-      f :: (RuleId, Rule (PrimState m) a) -> ST (PrimState m) ()
+      f :: (RuleId, Rule s a) -> ST s ()
       f (_r, rule) = do
         actual <- readMutVar (ruleRefCounter rule)
         let expected = IntMap.findWithDefault 0 (ruleId rule) occurences
         unless (actual == expected) $
           error ("rule " ++ show (ruleId rule) ++ " occurs " ++ show expected ++ " times,"
                  ++ " but its reference counter is " ++ show actual)
-  stToPrim $ H.mapM_ f (sRules s)
+  H.mapM_ f (sRules s)
 
 -- -------------------------------------------------------------------
