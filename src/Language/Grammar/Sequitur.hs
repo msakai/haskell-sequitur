@@ -525,7 +525,7 @@ decodeLazy g = appEndo (decodeToMonoid (\a -> Endo (a :)) g) []
 -- | 'Monoid'-based folding over the decoded sequence.
 --
 -- This function is equivalent to the following definition, is more
--- efficent due to the utilization of sharing.b
+-- efficent due to the utilization of sharing.
 --
 -- @
 -- decodeToMonoid f = 'mconcat' . 'map' f . 'decode'
