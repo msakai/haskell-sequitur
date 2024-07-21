@@ -5,7 +5,7 @@ cabal-version: 2.2
 -- see: https://github.com/sol/hpack
 
 name:           sequitur
-version:        0.1.1.0
+version:        0.2.0.0
 synopsis:       Grammar-based compression algorithms SEQUITUR
 description:    Please see the README on GitHub at <https://github.com/msakai/haskell-sequitur#readme>
 category:       Formal Languages, Language, Natural Language Processing, NLP, Text, Compression

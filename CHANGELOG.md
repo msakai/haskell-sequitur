@@ -8,6 +8,7 @@ and this project adheres to the
 
 ## Unreleased
 
+* introduce `IsTerminalSymbol` class synonym for absorbing the difference between `hashable` `<1.4.0.0` and `>=1.4.0.0`.
 * use `ST` monad internally instead of arbitrary `PrimMonad` to allow GHC to inline `(>>=)` to produce more efficient code
 * add `sequitur-demo` program
 * add some sanity checks which are disabled by default

@@ -1,4 +1,6 @@
 {-# OPTIONS_GHC -Wall #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -61,6 +63,7 @@ module Language.Grammar.Sequitur
     Grammar
   , RuleId
   , Symbol (..)
+  , IsTerminalSymbol
 
   -- * High-level API
   --
@@ -137,6 +140,33 @@ type Digram a = (Symbol a, Symbol a)
 --
 -- Non-terminal is represented as a 'RuleId'.
 type Grammar a = IntMap [Symbol a]
+
+
+-- | @IsTerminalSymbol@ is a class synonym for absorbing the difference
+-- between @hashable@ @<1.4.0.0@ and @>=1.4.0.0@.
+--
+-- @hashable-1.4.0.0@ makes 'Eq' to be a super class of 'Hashable'.
+-- Therefore we define
+--
+-- @
+-- type IsTerminalSymbol a = Hashable a
+-- @
+--
+-- on @hashable >=1.4.0.0@, while we define
+--
+-- @
+-- type IsTerminalSymbol a = (Eq a, Hashable a)
+-- @
+--
+-- on @hashable <1.4.0.0@.
+--
+-- Also developpers can temporary add other classes (e.g. 'Show') to
+-- ease debugging.
+#if MIN_VERSION_hashable(1,4,0)
+type IsTerminalSymbol a = Hashable a
+#else
+type IsTerminalSymbol a = (Eq a, Hashable a)
+#endif
 
 -- -------------------------------------------------------------------
 
@@ -264,7 +294,7 @@ getRule s rid = do
 
 -- | Add a new symbol to the end of grammar's start production,
 -- and perform normalization to keep the invariants of /SEQUITUR/ algorithm.
-add :: (PrimMonad m, Eq a, Hashable a) => Builder (PrimState m) a -> a -> m ()
+add :: (PrimMonad m, IsTerminalSymbol a) => Builder (PrimState m) a -> a -> m ()
 add s a = stToPrim $ do
   lastNode <- getLastNodeOfRule (sRoot s)
   _ <- insertAfter s lastNode (Terminal a)
@@ -297,7 +327,7 @@ freezeGuardNode g = f [] =<< getPrev g
 
 -- -------------------------------------------------------------------
 
-link :: (Eq a, Hashable a) => Builder s a -> Node s a -> Node s a -> ST s ()
+link :: IsTerminalSymbol a => Builder s a -> Node s a -> Node s a -> ST s ()
 link s left right = do
   leftPrev <- getPrev left
   leftNext <- getNext left
@@ -323,7 +353,7 @@ link s left right = do
   setNext left right
   setPrev right left
 
-insertAfter :: (Eq a, Hashable a, HasCallStack) => Builder s a -> Node s a -> Symbol a -> ST s (Node s a)
+insertAfter :: (IsTerminalSymbol a, HasCallStack) => Builder s a -> Node s a -> Symbol a -> ST s (Node s a)
 insertAfter s node sym = do
   prevRef <- newMutVar (sDummyNode s)
   nextRef <- newMutVar (sDummyNode s)
@@ -341,7 +371,7 @@ insertAfter s node sym = do
 
   return newNode
 
-deleteDigram :: (Eq a, Hashable a) => Builder s a -> Node s a -> ST s ()
+deleteDigram :: IsTerminalSymbol a => Builder s a -> Node s a -> ST s ()
 deleteDigram s n
   | isGuardNode n = return ()
   | otherwise = do
@@ -352,7 +382,7 @@ deleteDigram s n
           _ -> (Nothing, ())
         return ()
 
-check :: (Eq a, Hashable a) => Builder s a -> Node s a -> ST s Bool
+check :: IsTerminalSymbol a => Builder s a -> Node s a -> ST s Bool
 check s node
   | isGuardNode node = return False
   | otherwise = do
@@ -373,7 +403,7 @@ check s node
                match s node node'
                return True
 
-match :: (Eq a, Hashable a, HasCallStack) => Builder s a -> Node s a -> Node s a -> ST s ()
+match :: (IsTerminalSymbol a, HasCallStack) => Builder s a -> Node s a -> Node s a -> ST s ()
 match s ss m = do
   mPrev <- getPrev m
   mNext <- getNext m
@@ -415,7 +445,7 @@ match s ss m = do
                   when (freq <= 1) $ error "Sequitur.match: non-first node with refCount <= 1"
     loop =<< getNext firstNode
 
-deleteNode :: (Eq a, Hashable a, HasCallStack) => Builder s a -> Node s a -> ST s ()
+deleteNode :: (IsTerminalSymbol a, HasCallStack) => Builder s a -> Node s a -> ST s ()
 deleteNode s node = do
   assert (not (isGuardNode node)) $ return ()
   prev <- getPrev node
@@ -428,7 +458,7 @@ deleteNode s node = do
       rule <- getRule s rid
       modifyMutVar' (ruleRefCounter rule) (subtract 1)
 
-substitute :: (Eq a, Hashable a, HasCallStack) => Builder s a -> Node s a -> Rule s a -> ST s ()
+substitute :: (IsTerminalSymbol a, HasCallStack) => Builder s a -> Node s a -> Rule s a -> ST s ()
 substitute s node rule = do
   prev <- getPrev node
   deleteNode s =<< getNext prev
@@ -440,7 +470,7 @@ substitute s node rule = do
     _ <- check s next
     return ()
 
-expand :: (Eq a, Hashable a) => Builder s a -> Node s a -> Rule s a -> ST s ()
+expand :: IsTerminalSymbol a => Builder s a -> Node s a -> Rule s a -> ST s ()
 expand s node rule = do
   left <- getPrev node
   right <- getNext node
@@ -462,7 +492,7 @@ expand s node rule = do
 -- -------------------------------------------------------------------
 
 -- | Construct a grammer from a given sequence of symbols using /SEQUITUR/.
-encode :: (Eq a, Hashable a) => [a] -> Grammar a
+encode :: IsTerminalSymbol a => [a] -> Grammar a
 encode xs = runST $ do
   e <- newBuilder
   mapM_ (add e) xs
@@ -516,12 +546,12 @@ decodeToMonoid e g = get 0 table
 
 -- -------------------------------------------------------------------
 
-checkDigramTable :: (Eq a, Hashable a) => Builder s a -> ST s ()
+checkDigramTable :: IsTerminalSymbol a => Builder s a -> ST s ()
 checkDigramTable s = do
   checkDigramTable1 s
   checkDigramTable2 s
 
-checkDigramTable1 :: (Eq a, Hashable a) => Builder s a -> ST s ()
+checkDigramTable1 :: IsTerminalSymbol a => Builder s a -> ST s ()
 checkDigramTable1 s = do
   ds <- H.toList (sDigrams s)
   forM_ ds $ \((sym1, sym2), node1) -> do
@@ -543,7 +573,7 @@ checkDigramTable1 s = do
                 error "checkDigramTable1: an entry points to a digram in a inconsistent rule"
     f node1
 
-checkDigramTable2 :: (Eq a, Hashable a) => Builder s a -> ST s ()
+checkDigramTable2 :: IsTerminalSymbol a => Builder s a -> ST s ()
 checkDigramTable2 s = do
   rules <- H.toList (sRules s)
   forM_ (sRoot s : map snd rules) $ \rule -> do
@@ -574,7 +604,7 @@ checkDigramTable2 s = do
               normalCase
     f =<< getFirstNodeOfRule rule
 
-checkRefCount :: forall s a. (Eq a, Hashable a) => Builder s a -> ST s ()
+checkRefCount :: forall s a. Builder s a -> ST s ()
 checkRefCount s = do
   g <- build s
   let occurences = IntMap.fromListWith (+) [(rid, 1) | body <- IntMap.elems g, NonTerminal rid <- body]
