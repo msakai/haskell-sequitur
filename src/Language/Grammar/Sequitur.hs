@@ -60,7 +60,7 @@
 module Language.Grammar.Sequitur
   (
   -- * Basic type definition
-    Grammar
+    Grammar (..)
   , RuleId
   , Symbol (..)
   , IsTerminalSymbol
@@ -137,8 +137,8 @@ type Digram a = (Symbol a, Symbol a)
 -- rule) to sequnce of symbols (right hand side of the rule).
 --
 -- Non-terminal is represented as a 'RuleId'.
-type Grammar a = IntMap [Symbol a]
-
+newtype Grammar a = Grammar (IntMap [Symbol a])
+  deriving (Eq, Show)
 
 -- | @IsTerminalSymbol@ is a class synonym for absorbing the difference
 -- between @hashable@ @<1.4.0.0@ and @>=1.4.0.0@.
@@ -310,7 +310,7 @@ build s = stToPrim $ do
   m <- forM xs $ \(rid, rule) -> do
     ys <- freezeGuardNode (ruleGuardNode rule)
     return $ (rid, ys)
-  return $ IntMap.insert 0 root $ IntMap.fromList m
+  return $ Grammar $ IntMap.insert 0 root $ IntMap.fromList m
 
 freezeGuardNode :: forall a s. Node s a -> ST s [Symbol a]
 freezeGuardNode g = f [] =<< getPrev g
@@ -529,10 +529,10 @@ decodeLazy g = appEndo (decodeToMonoid (\a -> Endo (a :)) g) []
 -- decodeToMonoid f = 'mconcat' . 'map' f . 'decode'
 -- @
 decodeToMonoid :: (Monoid m, HasCallStack) => (a -> m) -> Grammar a -> m
-decodeToMonoid e g = get 0 table
+decodeToMonoid e (Grammar m) = get 0 table
   where
     -- depends on the fact that fmap of IntMap is lazy
-    table = fmap (mconcat . map f) g
+    table = fmap (mconcat . map f) m
 
     f (Terminal a) = e a
     f (NonTerminal r) = get r table
@@ -604,8 +604,8 @@ checkDigramTable2 s = do
 
 checkRefCount :: forall s a. Builder s a -> ST s ()
 checkRefCount s = do
-  g <- build s
-  let occurences = IntMap.fromListWith (+) [(rid, 1) | body <- IntMap.elems g, NonTerminal rid <- body]
+  Grammar m <- build s
+  let occurences = IntMap.fromListWith (+) [(rid, 1) | body <- IntMap.elems m, NonTerminal rid <- body]
       f :: (RuleId, Rule s a) -> ST s ()
       f (_r, rule) = do
         actual <- readMutVar (ruleRefCounter rule)

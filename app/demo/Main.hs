@@ -48,7 +48,7 @@ main = do
   builder <- Sequitur.newBuilder
   forM_ (T.unpack s) $ \c -> do
     Sequitur.add builder c
-  g <- Sequitur.build builder
+  Sequitur.Grammar m <- Sequitur.build builder
 
   endCPU <- getTime ProcessCPUTime
   endWC  <- getTime Monotonic
@@ -56,7 +56,7 @@ main = do
   printf "wall clock time = %.3fs\n" (durationSecs startWC endWC)
 
   when (optPrintGrammar opt) $ do
-    forM_ (IntMap.toList g) $ \(r, body) -> do
+    forM_ (IntMap.toList m) $ \(r, body) -> do
       let f (Sequitur.Terminal c) = show c
           f (Sequitur.NonTerminal r') = show r'
       putStrLn $ show r ++ " -> " ++ intercalate " " (map f body)
