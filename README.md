@@ -62,3 +62,4 @@ The output represents the following grammar:
   Hierarchical Structure in Sequences: A linear-time
   algorithm](https://doi.org/10.1613/jair.374)," Journal of
   Artificial Intelligence Research, 7, 67-82.
+- [nikitadanilov/sequuntur](https://github.com/nikitadanilov/sequuntur)
