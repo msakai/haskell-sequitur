@@ -131,6 +131,11 @@ data Symbol a
 
 instance (Hashable a) => Hashable (Symbol a)
 
+-- | @since 0.2.0.0
+instance Functor Symbol where
+  fmap _ (NonTerminal rid) = NonTerminal rid
+  fmap f (Terminal a) = Terminal (f a)
+
 type Digram a = (Symbol a, Symbol a)
 
 -- | A grammar is a mappping from non-terminal (left-hand side of the
@@ -139,6 +144,14 @@ type Digram a = (Symbol a, Symbol a)
 -- Non-terminal is represented as a 'RuleId'.
 newtype Grammar a = Grammar (IntMap [Symbol a])
   deriving (Eq, Show)
+
+-- | @since 0.2.0.0
+instance Functor Grammar where
+  fmap f (Grammar m) = Grammar (fmap (map (fmap f)) m)
+
+-- | @since 0.2.0.0
+instance Foldable Grammar where
+  foldMap = decodeToMonoid
 
 -- | @IsTerminalSymbol@ is a class synonym for absorbing the difference
 -- between @hashable@ @<1.4.0.0@ and @>=1.4.0.0@.
