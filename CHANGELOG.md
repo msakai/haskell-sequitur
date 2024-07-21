@@ -8,6 +8,8 @@ and this project adheres to the
 
 ## Unreleased
 
+* use `ST` monad internally instead of arbitrary `PrimMonad` to allow GHC to inline `(>>=)` to produce more efficient code
+* add `sequitur-demo` program
 * add some sanity checks which are disabled by default
 
 ## 0.1.0.0 - 2024-07-13
