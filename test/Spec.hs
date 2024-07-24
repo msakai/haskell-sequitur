@@ -12,7 +12,7 @@ import Language.Grammar.Sequitur
 main :: IO ()
 main = hspec $ do
   describe "Sequitur.encode" $ do
-    let cases =
+    let cases = map (\(name, m) -> (name, Grammar m))
           [ ( "abab"
             , IntMap.fromList [(0, [NonTerminal 1, NonTerminal 1]), (1, [Terminal 'a', Terminal 'b'])]
             )
@@ -54,13 +54,13 @@ simpleString :: Gen String
 simpleString = liftArbitrary (elements ['a'..'z'])
 
 reprGrammar :: Grammar Char -> String
-reprGrammar grammar = "{" ++ intercalate ", " [show nt ++ " -> " ++ intercalate " " (map reprSymbol body) | (nt, body) <- IntMap.toAscList grammar] ++ "}"
+reprGrammar (Grammar m) = "{" ++ intercalate ", " [show nt ++ " -> " ++ intercalate " " (map reprSymbol body) | (nt, body) <- IntMap.toAscList m] ++ "}"
   where
     reprSymbol (Terminal c) = [c]
     reprSymbol (NonTerminal x) = show x
 
 digramUniqueness :: Grammar Char -> Property
-digramUniqueness g = conjoin
+digramUniqueness (Grammar m) = conjoin
   [ counterexample (show ce) $
       case Set.toList ps of
         [_] -> True
@@ -71,14 +71,14 @@ digramUniqueness g = conjoin
   where
     occurrences = Map.fromListWith Set.union
       [ (digram, Set.singleton (i,j))
-      | (i, body) <- IntMap.toList g, (j, digram) <- zip [(0::Int)..] (zip body (tail body))
+      | (i, body) <- IntMap.toList m, (j, digram) <- zip [(0::Int)..] (zip body (tail body))
       ]
 
 ruleUtility :: Grammar Char -> Property
-ruleUtility g = 
+ruleUtility (Grammar m) = 
   conjoin [counterexample (show (r, n)) $ n >= 2 | (r, n) <- IntMap.toList occurrences]
   .&&.
-  IntMap.keysSet g === IntSet.insert 0 (IntMap.keysSet occurrences)
+  IntMap.keysSet m === IntSet.insert 0 (IntMap.keysSet occurrences)
   where
     occurrences = IntMap.fromListWith (+)
-      [(r, (1::Int)) | body <- IntMap.elems g, NonTerminal r <- body]
+      [(r, (1::Int)) | body <- IntMap.elems m, NonTerminal r <- body]
