@@ -142,7 +142,7 @@ type Digram a = (Symbol a, Symbol a)
 -- rule) to sequnce of symbols (right hand side of the rule).
 --
 -- Non-terminal is represented as a 'RuleId'.
-newtype Grammar a = Grammar (IntMap [Symbol a])
+newtype Grammar a = Grammar {unGrammar :: IntMap [Symbol a]}
   deriving (Eq, Show)
 
 -- | @since 0.2.0.0
@@ -313,7 +313,6 @@ add s a = stToPrim $ do
   when sanityCheck $ do
     checkDigramTable s
     checkRefCount s
-  return ()
 
 -- | Retrieve a grammar (as a persistent data structure) from 'Builder'\'s internal state.
 build :: (PrimMonad m) => Builder (PrimState m) a -> m (Grammar a)
@@ -322,7 +321,7 @@ build s = stToPrim $ do
   xs <- H.toList (sRules s)
   m <- forM xs $ \(rid, rule) -> do
     ys <- freezeGuardNode (ruleGuardNode rule)
-    return $ (rid, ys)
+    return (rid, ys)
   return $ Grammar $ IntMap.insert 0 root $ IntMap.fromList m
 
 freezeGuardNode :: forall a s. Node s a -> ST s [Symbol a]
@@ -496,7 +495,7 @@ expand s node rule = do
   let key = (nodeSymbol l, nodeSymbol n)
   when sanityCheck $ do
     ret <- H.lookup (sDigrams s) key
-    when (isJust ret) $ error ("Sequitur.expand: the digram is already in the table")
+    when (isJust ret) $ error "Sequitur.expand: the digram is already in the table"
   H.insert (sDigrams s) key l
   H.delete (sRules s) (ruleId rule)
 
