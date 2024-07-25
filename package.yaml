@@ -79,3 +79,18 @@ executables:
         buildable: true
       else:
         buildable: false
+
+benchmarks:
+  sequitur-bench:
+    main:                Main.hs
+    source-dirs:         bench
+    language:            Haskell2010
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -O2
+    dependencies:
+    - base
+    - sequitur
+    - criterion >= 1.5.13.0 && <1.7
+    - QuickCheck >= 2.14.2 && < 2.15

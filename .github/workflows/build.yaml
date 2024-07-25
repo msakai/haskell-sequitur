@@ -52,10 +52,10 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.ghc }}-stack
 
       - name: Build dependencies
-        run: stack build ${{ matrix.stack_args }} --test --no-run-tests --only-dependencies
+        run: stack build ${{ matrix.stack_args }} --test --no-run-tests --bench --no-run-benchmarks --only-dependencies
 
       - name: Build
-        run: stack build ${{ matrix.stack_args }} --test --no-run-tests
+        run: stack build ${{ matrix.stack_args }} --test --no-run-tests --bench --no-run-benchmarks
 
       - name: Test
         run: stack test ${{ matrix.stack_args }}
