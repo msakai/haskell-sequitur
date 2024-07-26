@@ -42,7 +42,7 @@ patterns in the given sequence with new rules. _SEQUITUR_ maintains two invarian
 ```console
 ghci> import Language.Grammar.Sequitur
 ghci> encode "baaabacaa"
-fromList [(0,[NonTerminal 1,NonTerminal 2,NonTerminal 1,Terminal 'c',NonTerminal 2]),(1,[Terminal 'b',Terminal 'a']),(2,[Terminal 'a',Terminal 'a'])]
+Grammar {unGrammar = fromList [(0,[NonTerminal 1,NonTerminal 2,NonTerminal 1,Terminal 'c',NonTerminal 2]),(1,[Terminal 'b',Terminal 'a']),(2,[Terminal 'a',Terminal 'a'])]}
 ```
 
 The output represents the following grammar:
