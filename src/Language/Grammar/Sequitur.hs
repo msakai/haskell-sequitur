@@ -107,7 +107,11 @@ import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import Data.String (IsString (..))
 import GHC.Generics (Generic)
-import qualified GHC.IsList as IsList
+#if MIN_VERSION_base(4,17,0)
+import qualified GHC.IsList as IsList (IsList (..))
+#else
+import qualified GHC.Exts as IsList (IsList (..))
+#endif
 import GHC.Stack
 
 -- TODO:
