@@ -49,7 +49,10 @@ jobs:
         name: Cache ~/.stack
         with:
           path: ~/.stack
-          key: ${{ runner.os }}-${{ matrix.ghc }}-stack
+          key: ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('sequitur.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.ghc }}-${{ hashFiles('sequitur.cabal') }}
+            ${{ runner.os }}-${{ matrix.ghc }}-
 
       - name: Build dependencies
         run: stack build ${{ matrix.stack_args }} --test --no-run-tests --bench --no-run-benchmarks --only-dependencies
