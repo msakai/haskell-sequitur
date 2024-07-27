@@ -2,8 +2,10 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Language.Grammar.Sequitur
@@ -103,7 +105,13 @@ import Data.Maybe
 import Data.Semigroup (Endo (..))
 import Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import Data.String (IsString (..))
 import GHC.Generics (Generic)
+#if MIN_VERSION_base(4,17,0)
+import qualified GHC.IsList as IsList (IsList (..))
+#else
+import qualified GHC.Exts as IsList (IsList (..))
+#endif
 import GHC.Stack
 
 -- TODO:
@@ -152,6 +160,16 @@ instance Functor Grammar where
 -- | @since 0.2.0.0
 instance Foldable Grammar where
   foldMap = decodeToMonoid
+
+-- | @since 0.2.0.0
+instance IsTerminalSymbol a => IsList.IsList (Grammar a) where
+  type Item (Grammar a) = a
+  fromList = encode
+  toList = decodeLazy
+
+-- | @since 0.2.0.0
+instance  IsString (Grammar Char) where
+  fromString = encode
 
 -- | @IsTerminalSymbol@ is a class synonym for absorbing the difference
 -- between @hashable@ @<1.4.0.0@ and @>=1.4.0.0@.
