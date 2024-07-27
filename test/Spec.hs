@@ -71,7 +71,7 @@ digramUniqueness (Grammar m) = conjoin
   where
     occurrences = Map.fromListWith Set.union
       [ (digram, Set.singleton (i,j))
-      | (i, body) <- IntMap.toList m, (j, digram) <- zip [(0::Int)..] (zip body (tail body))
+      | (i, body) <- IntMap.toList m, (j, digram) <- zip [(0::Int)..] (zip body (drop 1 body))
       ]
 
 ruleUtility :: Grammar Char -> Property

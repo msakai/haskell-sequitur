@@ -4,10 +4,10 @@
 
 module Main where
 
-import Criterion (bench, bgroup, env, nf, whnf)
+import Criterion (bench, bgroup, env, whnf)
 import Criterion.Main (defaultMain)
 import Data.Functor ((<&>))
-import Language.Grammar.Sequitur (Symbol, encode)
+import Language.Grammar.Sequitur (encode)
 import Test.QuickCheck (Arbitrary (arbitrary), generate, vectorOf)
 
 main :: IO ()
