@@ -63,8 +63,8 @@ module Language.Grammar.Sequitur
   (
   -- * Basic type definition
     Grammar (..)
-  , RuleId
   , Symbol (..)
+  , NonTerminalSymbol
   , IsTerminalSymbol
 
   -- * High-level API
@@ -149,12 +149,15 @@ sanityCheck = False
 -- | A non-terminal symbol is represented by an 'Int'.
 --
 -- The number @0@ is reserved for the start symbol of the grammar.
-type RuleId = Int
+type NonTerminalSymbol = Int
+
+-- | Internal alias of 'NonTerminalSymbol'
+type RuleId = NonTerminalSymbol
 
 -- | A symbol is either a terminal symbol (from user-specified type)
--- or a non-terminal symbol which we represent using 'RuleId' type.
+-- or a non-terminal symbol.
 data Symbol a
-  = NonTerminal !RuleId
+  = NonTerminal !NonTerminalSymbol
   | Terminal a
   deriving (Eq, Ord, Show, Generic)
 
@@ -169,8 +172,6 @@ type Digram a = (Symbol a, Symbol a)
 
 -- | A grammar is a mappping from non-terminal (left-hand side of the
 -- rule) to sequnce of symbols (right hand side of the rule).
---
--- Non-terminal is represented as a 'RuleId'.
 newtype Grammar a = Grammar {unGrammar :: IntMap [Symbol a]}
   deriving (Eq, Show)
 

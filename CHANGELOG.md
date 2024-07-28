@@ -8,6 +8,7 @@ and this project adheres to the
 
 ## Unreleased
 
+* rename `RuleId` type to `NonTerminalSymbol`
 * add a benchmark program `sequitur-bench` (Thanks to [MangoIV](https://github.com/MangoIV))
 * change `Grammar` type from a type synonym to a `newtype`, and add instances of `Foldable`, `IsList`, and `IsString`
 * introduce `IsTerminalSymbol` class synonym for absorbing the difference between `hashable` `<1.4.0.0` and `>=1.4.0.0`.
