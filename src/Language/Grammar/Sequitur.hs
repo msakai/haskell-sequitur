@@ -99,6 +99,9 @@ import Data.Hashable
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as IntMap
 import Data.Primitive.MutVar
+#if MIN_VERSION_primitive(0,8,0)
+import Data.Primitive.PrimVar
+#endif
 import qualified Data.HashTable.Class as H (toList)
 import qualified Data.HashTable.ST.Cuckoo as H
 import Data.Maybe
@@ -114,9 +117,27 @@ import qualified GHC.Exts as IsList (IsList (..))
 #endif
 import GHC.Stack
 
--- TODO:
---
--- * Use PrimVar after dropping support for primitive <0.8.0.0
+#if !MIN_VERSION_primitive(0,8,0)
+
+type PrimVar s a = MutVar s a
+
+{-# INLINE newPrimVar #-}
+newPrimVar :: PrimMonad m => a -> m (PrimVar (PrimState m) a)
+newPrimVar = newMutVar
+
+{-# INLINE readPrimVar #-}
+readPrimVar :: PrimMonad m => PrimVar (PrimState m) a -> m a
+readPrimVar = readMutVar
+
+{-# INLINE writePrimVar #-}
+writePrimVar :: PrimMonad m => PrimVar (PrimState m) a -> a -> m ()
+writePrimVar = writeMutVar
+
+{-# INLINE modifyPrimVar #-}
+modifyPrimVar :: PrimMonad m => PrimVar (PrimState m) a -> (a -> a) -> m ()
+modifyPrimVar = modifyMutVar'
+
+#endif
 
 -- -------------------------------------------------------------------
 
@@ -257,7 +278,7 @@ data Rule s a
   = Rule
   { ruleId :: {-# UNPACK #-} !RuleId
   , ruleGuardNode :: !(Node s a)
-  , ruleRefCounter :: {-# UNPACK #-} !(MutVar s Int)
+  , ruleRefCounter :: {-# UNPACK #-} !(PrimVar s Int)
   }
 
 instance Eq (Rule s a) where
@@ -275,13 +296,13 @@ getLastNodeOfRule rule = getPrev (ruleGuardNode rule)
 mkRule :: RuleId -> ST s (Rule s a)
 mkRule rid = do
   g <- mkGuardNode rid
-  refCounter <- newMutVar 0
+  refCounter <- newPrimVar 0
   return $ Rule rid g refCounter
 
 newRule :: Builder s a -> ST s (Rule s a)
 newRule s = do
-  rid <- readMutVar (sRuleIdCounter s)
-  modifyMutVar' (sRuleIdCounter s) (+ 1)
+  rid <- readPrimVar (sRuleIdCounter s)
+  modifyPrimVar (sRuleIdCounter s) (+ 1)
   rule <- mkRule rid
   H.insert (sRules s) rid rule
   return rule
@@ -294,7 +315,7 @@ data Builder s a
   { sRoot :: !(Rule s a)
   , sDigrams :: !(H.HashTable s (Digram a) (Node s a))
   , sRules :: !(H.HashTable s RuleId (Rule s a))
-  , sRuleIdCounter :: {-# UNPACK #-} !(MutVar s Int)
+  , sRuleIdCounter :: {-# UNPACK #-} !(PrimVar s Int)
   , sDummyNode :: !(Node s a)
   }
 
@@ -304,7 +325,7 @@ newBuilder = stToPrim $ do
   root <- mkRule 0
   digrams <- H.new
   rules <- H.new
-  counter <- newMutVar 1
+  counter <- newPrimVar 1
 
   prevRef <- newMutVar undefined
   nextRef <- newMutVar undefined
@@ -395,7 +416,7 @@ insertAfter s node sym = do
     Terminal _ -> return ()
     NonTerminal rid -> do
       rule <- getRule s rid
-      modifyMutVar' (ruleRefCounter rule) (+ 1)
+      modifyPrimVar (ruleRefCounter rule) (+ 1)
 
   return newNode
 
@@ -458,7 +479,7 @@ match s ss m = do
     Terminal _ -> return ()
     NonTerminal rid -> do
       rule2 <- getRule s rid
-      freq <- readMutVar (ruleRefCounter rule2)
+      freq <- readPrimVar (ruleRefCounter rule2)
       when (freq == 1) $ expand s firstNode rule2
 
   when sanityCheck $ do
@@ -469,7 +490,7 @@ match s ss m = do
                 Terminal _ -> return ()
                 NonTerminal rid -> do
                   rule2 <- getRule s rid
-                  freq <- readMutVar (ruleRefCounter rule2)
+                  freq <- readPrimVar (ruleRefCounter rule2)
                   when (freq <= 1) $ error "Sequitur.match: non-first node with refCount <= 1"
     loop =<< getNext firstNode
 
@@ -484,7 +505,7 @@ deleteNode s node = do
     Terminal _ -> return ()
     NonTerminal rid -> do
       rule <- getRule s rid
-      modifyMutVar' (ruleRefCounter rule) (subtract 1)
+      modifyPrimVar (ruleRefCounter rule) (subtract 1)
 
 substitute :: (IsTerminalSymbol a, HasCallStack) => Builder s a -> Node s a -> Rule s a -> ST s ()
 substitute s node rule = do
@@ -638,7 +659,7 @@ checkRefCount s = do
   let occurences = IntMap.fromListWith (+) [(rid, 1) | body <- IntMap.elems m, NonTerminal rid <- body]
       f :: (RuleId, Rule s a) -> ST s ()
       f (_r, rule) = do
-        actual <- readMutVar (ruleRefCounter rule)
+        actual <- readPrimVar (ruleRefCounter rule)
         let expected = IntMap.findWithDefault 0 (ruleId rule) occurences
         unless (actual == expected) $
           error ("rule " ++ show (ruleId rule) ++ " occurs " ++ show expected ++ " times,"
