@@ -8,6 +8,8 @@ and this project adheres to the
 
 ## Unreleased
 
+## 0.2.0.0 - 2024-07-28
+
 * add `decodeNonTerminalsToMonoid` function
 * rename `RuleId` type to `NonTerminalSymbol`
 * add a benchmark program `sequitur-bench` (Thanks to [MangoIV](https://github.com/MangoIV))
