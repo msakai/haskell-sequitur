@@ -11,7 +11,7 @@ Dev:
 
 _SEQUITUR_ is a linear-time, online algorithm for producing a context-free
 grammar from an input sequence. The resulting grammar is a compact representation
-of original sequence and can be used for data compression.
+of the original sequence and can be used for data compression.
 
 Example:
 
@@ -22,19 +22,19 @@ Example:
   - `A` → `BB`
   - `B` → `abc`
 
-_SEQUITUR_ consumes input symbols one-by-one and append each symbol at the end of the
+_SEQUITUR_ consumes input symbols one-by-one and appends each symbol at the end of the
 grammar's start production (`S` in the above example), then substitutes repeating
 patterns in the given sequence with new rules. _SEQUITUR_ maintains two invariants:
 
 * **Digram Uniqueness**: _SEQUITUR_ ensures that no digram
   (a.k.a. bigram) occurs more than once in the grammar. If a digram
-  (e.g. `ab`) occurs twice, SEQUITUR introduce a fresh non-terminal
-  symbol (e.g. `M`) and a rule (e.g. `M` → `ab`) and replace
-  original occurences with the newly introduced non-terminals.  One
-  exception is the cases where two occurrence overlap.
+  (e.g. `ab`) occurs twice, SEQUITUR introduces a fresh non-terminal
+  symbol (e.g. `M`) and a rule (e.g. `M` → `ab`) and replaces
+  original occurrences with the newly introduced non-terminals.  One
+  exception is the cases where two occurrences overlap.
 
 * **Rule Utility**: If a non-terminal symbol occurs only once,
-  _SEQUITUR_ removes the associated rule and substitute the occurence
+  _SEQUITUR_ removes the associated rule and substitutes the occurrence
   with the right-hand side of the rule.
 
 ## Usage
