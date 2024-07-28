@@ -155,7 +155,7 @@ type RuleId = Int
 -- or a non-terminal symbol which we represent using 'RuleId' type.
 data Symbol a
   = NonTerminal !RuleId
-  | Terminal !a
+  | Terminal a
   deriving (Eq, Ord, Show, Generic)
 
 instance (Hashable a) => Hashable (Symbol a)
