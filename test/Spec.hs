@@ -1,4 +1,3 @@
-import Control.Exception (evaluate)
 import Control.Monad
 import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
@@ -53,21 +52,10 @@ main = hspec $ do
             s' = decode g
          in counterexample (reprGrammar g) $ counterexample s' $ s == s'
 
-    it "is strict" $
-      let g = Grammar $ IntMap.fromList [(0, [Terminal 'a', NonTerminal 1]), (1, undefined)]
-          s = decode g
-       in evaluate (head s) `shouldThrow` anyException
-
-  describe "Sequitur.decodeLazy" $ do
-    it "is equivalent to Sequitur.decode" $
-      property $ forAll simpleString $ \s ->
-        let g = encode s
-         in counterexample (reprGrammar g) $ decode g === decodeLazy g
-
     it "is lazy" $
       let g = Grammar $ IntMap.fromList [(0, [Terminal 'a', NonTerminal 1]), (1, undefined)]
-          s = decodeLazy g
-       in head s `shouldBe` 'a'
+          s = decode g
+       in counterexample (reprGrammar g) $ head s `shouldBe` 'a'
 
   describe "Sequitur.decodeToSeq" $ do
     it "is equivalent to Sequitur.decode" $
