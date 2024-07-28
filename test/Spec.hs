@@ -1,6 +1,7 @@
+import Control.Exception (evaluate)
 import Control.Monad
 import qualified Data.Map.Strict as Map
-import qualified Data.IntMap.Strict as IntMap
+import qualified Data.IntMap.Lazy as IntMap
 import qualified Data.IntSet as IntSet
 import Data.List (intercalate)
 import qualified Data.Set as Set
@@ -49,6 +50,17 @@ main = hspec $ do
         let g = encode s
             s' = decode g
          in counterexample (reprGrammar g) $ counterexample s' $ s == s'
+
+    it "is strict" $
+      let g = Grammar $ IntMap.fromList [(0, [Terminal 'a', NonTerminal 1]), (1, undefined)]
+          s = decode g
+       in evaluate (head s) `shouldThrow` anyException
+
+  describe "Sequitur.decodeLazy" $ do
+    it "is lazy" $
+      let g = Grammar $ IntMap.fromList [(0, [Terminal 'a', NonTerminal 1]), (1, undefined)]
+          s = decodeLazy g
+       in head s `shouldBe` 'a'
 
 simpleString :: Gen String
 simpleString = liftArbitrary (elements ['a'..'z'])
