@@ -87,7 +87,6 @@ module Language.Grammar.Sequitur
 
   -- * Conversion to other types
   , decode
-  , decodeLazy
   , decodeToSeq
   , decodeToMonoid
   ) where
@@ -216,7 +215,7 @@ instance Foldable Grammar where
 instance IsTerminalSymbol a => IsList.IsList (Grammar a) where
   type Item (Grammar a) = a
   fromList = encode
-  toList = decodeLazy
+  toList = decode
 
 -- | @since 0.2.0.0
 instance  IsString (Grammar Char) where
@@ -581,29 +580,17 @@ encode xs = runST $ do
 
 -- | Reconstruct a input sequence from a grammar.
 --
--- This is a left-inverse of 'encode'.
+-- It is lazy in the sense that you can consume from the beginning
+-- before constructing entire sequence.
 --
--- This function is implemented as
---
--- @
--- decode = 'F.toList' . 'decodeToSeq'
--- @
---
--- and provided just for convenience.
--- For serious usage, use 'decodeToSeq' or 'decodeLazy'.
+-- This is a left-inverse of 'encode', and is equivalent to 'F.toList'
+-- of 'Foldable' class and 'IsList.toList' of 'IsList.IsList'.
 decode :: HasCallStack => Grammar a -> [a]
-decode = F.toList . decodeToSeq
+decode g = appEndo (decodeToMonoid (\a -> Endo (a :)) g) []
 
 -- | A variant of 'decode' with possibly better performance.
 decodeToSeq :: HasCallStack => Grammar a -> Seq a
 decodeToSeq = decodeToMonoid Seq.singleton
-
--- | A variant of 'decode' but you can consume from the beginning
--- before constructing entire sequence.
---
--- This is equivalent to 'F.toList' of 'Foldable' class.
-decodeLazy :: HasCallStack => Grammar a -> [a]
-decodeLazy g = appEndo (decodeToMonoid (\a -> Endo (a :)) g) []
 
 -- | 'Monoid'-based folding over the decoded sequence.
 --
