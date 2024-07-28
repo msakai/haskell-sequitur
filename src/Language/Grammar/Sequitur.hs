@@ -132,10 +132,6 @@ newPrimVar = newMutVar
 readPrimVar :: PrimMonad m => PrimVar (PrimState m) a -> m a
 readPrimVar = readMutVar
 
-{-# INLINE writePrimVar #-}
-writePrimVar :: PrimMonad m => PrimVar (PrimState m) a -> a -> m ()
-writePrimVar = writeMutVar
-
 {-# INLINE modifyPrimVar #-}
 modifyPrimVar :: PrimMonad m => PrimVar (PrimState m) a -> (a -> a) -> m ()
 modifyPrimVar = modifyMutVar'
