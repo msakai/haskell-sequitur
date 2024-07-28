@@ -94,7 +94,7 @@ digramUniqueness (Grammar m) = conjoin
       ]
 
 ruleUtility :: Grammar Char -> Property
-ruleUtility (Grammar m) = 
+ruleUtility (Grammar m) =
   conjoin [counterexample (show (r, n)) $ n >= 2 | (r, n) <- IntMap.toList occurrences]
   .&&.
   IntMap.keysSet m === IntSet.insert 0 (IntMap.keysSet occurrences)
