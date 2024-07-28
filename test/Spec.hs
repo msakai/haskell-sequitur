@@ -1,6 +1,8 @@
 import Control.Exception (evaluate)
 import Control.Monad
+import qualified Data.Foldable as F
 import qualified Data.Map.Strict as Map
+import Data.Monoid
 import qualified Data.IntMap.Lazy as IntMap
 import qualified Data.IntSet as IntSet
 import Data.List (intercalate)
@@ -57,10 +59,27 @@ main = hspec $ do
        in evaluate (head s) `shouldThrow` anyException
 
   describe "Sequitur.decodeLazy" $ do
+    it "is equivalent to Sequitur.decode" $
+      property $ forAll simpleString $ \s ->
+        let g = encode s
+         in counterexample (reprGrammar g) $ decode g === decodeLazy g
+
     it "is lazy" $
       let g = Grammar $ IntMap.fromList [(0, [Terminal 'a', NonTerminal 1]), (1, undefined)]
           s = decodeLazy g
        in head s `shouldBe` 'a'
+
+  describe "Sequitur.decodeToSeq" $ do
+    it "is equivalent to Sequitur.decode" $
+      property $ forAll simpleString $ \s ->
+        let g = encode s
+         in counterexample (reprGrammar g) $ decode g === F.toList (decodeToSeq g)
+
+  describe "Sequitur.decodeToMonoid" $ do
+    it "can be used to compute length" $
+      property $ forAll simpleString $ \s ->
+        let g = encode s
+         in counterexample (reprGrammar g) $ getSum (decodeToMonoid (\_ -> Sum 1) g) === length (decode g)
 
 simpleString :: Gen String
 simpleString = liftArbitrary (elements ['a'..'z'])
