@@ -69,6 +69,12 @@ main = hspec $ do
         let g = encode s
          in counterexample (reprGrammar g) $ getSum (decodeToMonoid (\_ -> Sum 1) g) === length (decode g)
 
+  describe "Sequitur.decodeNonTerminalsToMonoid" $ do
+    it "is consistent with decode" $
+      property $ forAll simpleString $ \s ->
+        let g = encode s
+         in counterexample (reprGrammar g) $ (decodeNonTerminalsToMonoid (\c -> [c]) g IntMap.! 0) === decode g
+
 simpleString :: Gen String
 simpleString = liftArbitrary (elements ['a'..'z'])
 

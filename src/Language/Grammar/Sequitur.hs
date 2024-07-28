@@ -89,6 +89,7 @@ module Language.Grammar.Sequitur
   , decode
   , decodeToSeq
   , decodeToMonoid
+  , decodeNonTerminalsToMonoid
   ) where
 
 import Control.Exception
@@ -606,7 +607,30 @@ decodeToSeq = decodeToMonoid Seq.singleton
 --
 -- This is equivalent to 'F.foldMap' of 'Foldable' class.
 decodeToMonoid :: (Monoid m, HasCallStack) => (a -> m) -> Grammar a -> m
-decodeToMonoid e (Grammar m) = get 0 table
+decodeToMonoid e g =  get 0 (decodeNonTerminalsToMonoid e g)
+
+-- | 'Monoid'-based folding over the decoded sequence of each non-terminal symbol.
+--
+-- For example, in the following grammar
+--
+-- @
+-- g = Grammar (IntMap.fromList
+--   [ (0, [NonTerminal 1, Terminal \'c\', NonTerminal 1])
+--   , (1, [Terminal \'a\', Terminal \'b\'])
+--   ])
+-- @
+--
+-- non-terminal symbol @0@ and @1@ produces @"abcab"@ and @"ab"@ respectively.
+-- Therefore, @'decodeNonTerminalsToMonoid' f@ yields
+--
+-- @
+-- IntMap.fromList
+--   [ (0, mconcat (map f "abcab"))
+--   , (1, mconcat (map f "ab"))
+--   ]
+-- @
+decodeNonTerminalsToMonoid :: (Monoid m, HasCallStack) => (a -> m) -> Grammar a -> IntMap m
+decodeNonTerminalsToMonoid e (Grammar m) = table
   where
     -- depends on the fact that fmap of IntMap is lazy
     table = fmap (mconcat . map f) m
@@ -614,10 +638,11 @@ decodeToMonoid e (Grammar m) = get 0 table
     f (Terminal a) = e a
     f (NonTerminal r) = get r table
 
-    get r tbl =
-      case IntMap.lookup r tbl of
-        Nothing -> error ("rule " ++ show r ++ " is missing")
-        Just x -> x
+get :: HasCallStack => RuleId -> IntMap x -> x
+get r tbl =
+  case IntMap.lookup r tbl of
+    Nothing -> error ("rule " ++ show r ++ " is missing")
+    Just x -> x
 
 -- -------------------------------------------------------------------
 
