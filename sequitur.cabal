@@ -39,6 +39,14 @@ library
       Paths_sequitur
   hs-source-dirs:
       src
+  other-extensions:
+      ConstraintKinds
+      CPP
+      DeriveGeneric
+      FlexibleInstances
+      LambdaCase
+      ScopedTypeVariables
+      TypeFamilies
   ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates -Wincomplete-uni-patterns -Wmissing-export-lists -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
   build-depends:
       base >=4.7 && <5
@@ -99,6 +107,10 @@ benchmark sequitur-bench
       Paths_sequitur
   hs-source-dirs:
       bench
+  other-extensions:
+      BlockArguments
+      NumericUnderscores
+      TypeApplications
   build-depends:
       QuickCheck >=2.14.2 && <2.15
     , base
