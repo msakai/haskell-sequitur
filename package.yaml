@@ -27,7 +27,7 @@ flags:
 
 dependencies:
 - base >= 4.7 && < 5
-- containers >= 0.6.4.1 && < 0.7
+- containers >= 0.6.4.1 && < 0.8
 
 language: Haskell2010
 
